@@ -5,8 +5,11 @@ authors = ["geauxvirtual <justin.guidroz@gmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[bin]
+[[bin]]
 name = "2by20"
 path = "src/main.rs"
 
 [dependencies]
+chrono = "0.4"
+fern = "0.6"
+log = "0.4"
