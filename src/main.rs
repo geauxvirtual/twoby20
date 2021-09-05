@@ -8,6 +8,8 @@ use std::str::FromStr;
 
 use clap::{App, Arg};
 
+mod application;
+
 // Configure command line options for the application.
 fn app() -> App<'static, 'static> {
     App::new("2by20").arg(
@@ -42,4 +44,6 @@ fn main() {
         .chain(std::io::stdout())
         .apply()
         .unwrap();
+
+    application::run()
 }
