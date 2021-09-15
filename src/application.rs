@@ -9,16 +9,17 @@ use std::{
 };
 
 use iced::{
-    executor, time, Application as IcedApplication, Clipboard, Column, Command, Element,
+    executor, time, Application as IcedApplication, Clipboard, Column, Command, Element, Settings,
     Subscription,
 };
-use iced_native::{subscription, Event};
+use iced_native::{subscription, window, Event};
+use libant::Request;
 // Run() is the main function to call. This handles starting up all the
 // threads and configuring the channels.
 pub fn run() {
     // Used for sending messages to ANT+ devices. (Open channel, Close channel,
     // request data, etc.
-    let (_ant_request_tx, ant_request_rx) = libant::unbounded();
+    let (ant_request_tx, ant_request_rx) = libant::unbounded();
     // Used for receiving ANT+ broadcast and channel messages
     let (ant_message_tx, ant_message_rx) = libant::unbounded();
     // Usend for sending messages to the application frontend
@@ -26,21 +27,17 @@ pub fn run() {
 
     let ant_run_handle = thread::spawn(move || libant::ant::run(ant_request_rx, ant_message_tx));
 
-    //This is just for test purposes initially. There will be a separate
-    //process thread for handling messages and sending the real time data
-    //up to the GUI.
-    loop {
-        match ant_message_rx.recv() {
-            Ok(libant::Response::Error(e)) => {
-                log::error!("Error message received: {:?}", e);
-            }
-            Ok(mesg) => log::debug!("Debugging message received: {:?}", mesg),
-            Err(e) => {
-                log::error!("Error receiving from Ant run thread: {:?}", e);
-                break;
-            }
-        }
-    }
+    let flags = AppFlags {
+        ant_request_tx: Some(ant_request_tx),
+    };
+    Application::run(Settings {
+        flags: flags,
+        exit_on_close_request: false,
+        ..Settings::default()
+    })
+    .unwrap();
+    // From my testing, this never gets executed beyond this point as
+    // Iced memory drops the interface.
     ant_run_handle.join().unwrap();
 }
 
@@ -66,6 +63,8 @@ pub fn run() {
 // ActivityEnded
 //   - Prompt user to save or discard workout
 //   - Go back to Ready state
+// TODO: Build application off this enum instead of the Application struct.
+// Need to look into this more.
 enum AppState {
     Starting,
     Ready,
@@ -79,6 +78,7 @@ enum AppState {
 struct Application {
     state: AppState,
     should_exit: bool,
+    ant_request_tx: libant::Sender<Request>,
 }
 
 // Message enum for configuring subscriptions and updates in the application.
@@ -95,7 +95,17 @@ enum Message {
 // AppFlags are used to pass channels into the application for communication
 // between the GUI and the backend threads that receive and send data
 // to ANT+ devices.
-struct AppFlags {}
+struct AppFlags {
+    ant_request_tx: Option<libant::Sender<Request>>,
+}
+
+impl Default for AppFlags {
+    fn default() -> Self {
+        Self {
+            ant_request_tx: None,
+        }
+    }
+}
 
 impl IcedApplication for Application {
     type Executor = executor::Default;
@@ -107,6 +117,9 @@ impl IcedApplication for Application {
             Application {
                 state: AppState::Starting,
                 should_exit: false,
+                ant_request_tx: flags
+                    .ant_request_tx
+                    .expect("Error 001: Application misconfigured"),
             },
             Command::none(),
         )
@@ -116,7 +129,23 @@ impl IcedApplication for Application {
         String::from("2by20")
     }
 
-    fn update(&mut self, _message: Message, _clipboard: &mut Clipboard) -> Command<Message> {
+    fn update(&mut self, message: Message, _clipboard: &mut Clipboard) -> Command<Message> {
+        // This will need to be updated to handle state of the application with
+        // what happens more than likely, but that will get built out as the
+        // application evolves.
+        match message {
+            Message::Tick(_) => {} //do nothing for now
+            Message::EventOccurred(event) => {
+                // May want to look into how to filter events before getting to this update
+                if let Event::Window(window::Event::CloseRequested) = event {
+                    log::info!("Exiting application");
+                    // Send quit request to ANT+ run thread
+                    thread::sleep(Duration::from_millis(500));
+                    self.should_exit = true;
+                }
+            }
+        }
+
         Command::none()
     }
 
