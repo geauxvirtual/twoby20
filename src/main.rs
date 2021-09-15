@@ -12,13 +12,20 @@ mod application;
 
 // Configure command line options for the application.
 fn app() -> App<'static, 'static> {
-    App::new("2by20").arg(
-        Arg::with_name("log-level")
-            .short("l")
-            .long("log-level")
-            .value_name("LOG_LEVEL")
-            .takes_value(true),
-    )
+    App::new("2by20")
+        .arg(
+            Arg::with_name("log-level")
+                .short("l")
+                .long("log-level")
+                .value_name("LOG_LEVEL")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("log-level-libant")
+                .long("log-level-libant")
+                .value_name("LOG_LEVEL_LIBANT")
+                .takes_value(true),
+        )
 }
 
 fn main() {
@@ -26,7 +33,9 @@ fn main() {
     let matches = app().get_matches();
     // Default application logging to info
     let log_level = matches.value_of("log-level").unwrap_or("info");
+    let log_level_libant = matches.value_of("log-level-libant").unwrap_or("info");
     let log_level_filter = log::LevelFilter::from_str(log_level).unwrap();
+    let log_level_libant_filter = log::LevelFilter::from_str(log_level_libant).unwrap();
     // Configure application level logging.
     // TODO: Switch from stdout logging to logging to file once the
     // application is stable enough.
@@ -41,6 +50,7 @@ fn main() {
             ))
         })
         .level(log_level_filter)
+        .level_for("libant", log_level_libant_filter)
         .chain(std::io::stdout())
         .apply()
         .unwrap();
