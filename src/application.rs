@@ -9,8 +9,8 @@ use std::{
 };
 
 use iced::{
-    executor, time, Application as IcedApplication, Clipboard, Column, Command, Element, Settings,
-    Subscription,
+    executor, time, Application as IcedApplication, Clipboard, Column, Command, Container, Element,
+    HorizontalAlignment, Length, Settings, Subscription, Text,
 };
 use iced_native::{subscription, window, Event};
 use libant::Request;
@@ -63,8 +63,6 @@ pub fn run() {
 // ActivityEnded
 //   - Prompt user to save or discard workout
 //   - Go back to Ready state
-// TODO: Build application off this enum instead of the Application struct.
-// Need to look into this more.
 enum AppState {
     Starting,
     Ready,
@@ -79,6 +77,8 @@ struct Application {
     state: AppState,
     should_exit: bool,
     ant_request_tx: libant::Sender<Request>,
+    user_profiles: Vec<UserProfile>,
+    workouts: Vec<Workout>,
 }
 
 // Message enum for configuring subscriptions and updates in the application.
@@ -88,6 +88,7 @@ struct Application {
 // and acts on the events accordingly.
 #[derive(Debug)]
 enum Message {
+    Loaded(Result<SavedState, LoadError>),
     Tick(Instant),
     EventOccurred(Event),
 }
@@ -120,8 +121,10 @@ impl IcedApplication for Application {
                 ant_request_tx: flags
                     .ant_request_tx
                     .expect("Error 001: Application misconfigured"),
+                user_profiles: vec![],
+                workouts: vec![], //There will be a single default workout always loaded. For now just created an empty vec.
             },
-            Command::none(),
+            Command::perform(SavedState::load(), Message::Loaded),
         )
     }
 
@@ -133,19 +136,36 @@ impl IcedApplication for Application {
         // This will need to be updated to handle state of the application with
         // what happens more than likely, but that will get built out as the
         // application evolves.
-        match message {
-            Message::Tick(_) => {} //do nothing for now
-            Message::EventOccurred(event) => {
-                // May want to look into how to filter events before getting to this update
-                if let Event::Window(window::Event::CloseRequested) = event {
-                    log::info!("Exiting application");
-                    // Send quit request to ANT+ run thread
-                    thread::sleep(Duration::from_millis(500));
-                    self.should_exit = true;
+        match self.state {
+            AppState::Starting => match message {
+                Message::Loaded(Ok(state)) => {
+                    if let Some(workouts) = state.workouts {
+                        self.workouts.extend_from_slice(&workouts);
+                    }
+                    if let Some(user_profiles) = state.user_profiles {
+                        self.user_profiles.extend_from_slice(&user_profiles);
+                    }
+                    self.state = AppState::Ready;
+                }
+                Message::Loaded(Err(_)) => {}
+                _ => {}
+            },
+            AppState::Ready => {
+                match message {
+                    Message::Tick(_) => {} //do nothing for now
+                    Message::EventOccurred(event) => {
+                        // May want to look into how to filter events before getting to this update
+                        if let Event::Window(window::Event::CloseRequested) = event {
+                            log::info!("Exiting application");
+                            // Send quit request to ANT+ run thread
+                            thread::sleep(Duration::from_millis(500));
+                            self.should_exit = true;
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
-
         Command::none()
     }
 
@@ -161,6 +181,98 @@ impl IcedApplication for Application {
     }
 
     fn view(&mut self) -> Element<Message> {
-        Column::new().into()
+        match self.state {
+            AppState::Starting => initializing_message(),
+            AppState::Ready => {
+                // If we don't have any user profiles, load screen to
+                // create a user profile. If we have user profiles,
+                // select the default user profile and load the workouts
+                // page for user to select a workout.
+                if self.user_profiles.is_empty() {}
+                Container::new(
+                    Text::new("Create User Profile goes here")
+                        .horizontal_alignment(HorizontalAlignment::Center)
+                        .size(50),
+                )
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .center_y()
+                .into()
+            }
+        }
     }
+}
+
+fn initializing_message<'a>() -> Element<'a, Message> {
+    Container::new(
+        Text::new("2by20 is initializing...")
+            .horizontal_alignment(HorizontalAlignment::Center)
+            .size(50),
+    )
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .center_y()
+    .into()
+}
+
+// Persistence
+// On startup, application will check for required directories
+// $HOME_DIR/2by20/{workouts, profiles, activities}
+// If the directories are not there, they will be created. If the directories
+// are there, workouts and profiles will be loaded.
+// (Future) Acitivity history will probably be stored in an internal DB to
+// easily load and save. Profiles may or may not move to the internal DB as well
+// but for now they will just be a toml file.
+//
+// Example
+// [[profile]]
+// name = "Justina
+// weight = "140"
+// weight_unit = "lbs""
+// ftp = "285"
+// theme = "dark"
+// default = true
+//
+// TODO move these to their own files under application/
+#[derive(Debug, Clone)]
+struct UserProfile;
+#[derive(Debug, Clone)]
+struct Workout;
+
+#[derive(Debug)]
+struct SavedState {
+    user_profiles: Option<Vec<UserProfile>>,
+    workouts: Option<Vec<Workout>>,
+}
+
+// TODO: Implement application error logic. Doing this for now.
+#[derive(Debug)]
+enum LoadError {
+    DirectoryError,
+    FileError,
+}
+
+impl SavedState {
+    // Init should verify and if needed created the following directories
+    // $HOME_DIR/Documents/2by20/profiles
+    // $HOME_DIR/Documents/2by20/workouts
+    // $HOME_DIR/Documents/2by20/activities
+    // At some point may also include applications settings.
+    // fn init()
+    async fn load() -> Result<SavedState, LoadError> {
+        // - Call init which will verify the directories exist, and if they
+        // don't exist created them.
+        // - Load profiles from $HOME_DIR/Documents/2by20/profiles
+        // - Load workouts from $HOME_DIR/Documents/2by20/workouts
+        Ok(SavedState {
+            user_profiles: None,
+            workouts: None,
+        })
+    }
+
+    // Save will be able to save user profiles. Single toml file.
+    // fn save()
+
+    // save_activity will save .fit file to file system
+    // fn save_activity()
 }
