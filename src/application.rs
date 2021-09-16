@@ -158,6 +158,7 @@ impl IcedApplication for Application {
                         if let Event::Window(window::Event::CloseRequested) = event {
                             log::info!("Exiting application");
                             // Send quit request to ANT+ run thread
+                            self.ant_request_tx.send(Request::Quit).unwrap();
                             thread::sleep(Duration::from_millis(500));
                             self.should_exit = true;
                         }
