@@ -14,6 +14,9 @@ use iced::{
 };
 use iced_native::{subscription, window, Event};
 use libant::Request;
+
+mod menubar;
+use menubar::MenuBar;
 // Run() is the main function to call. This handles starting up all the
 // threads and configuring the channels.
 pub fn run() {
@@ -21,7 +24,7 @@ pub fn run() {
     // request data, etc.
     let (ant_request_tx, ant_request_rx) = libant::unbounded();
     // Used for receiving ANT+ broadcast and channel messages
-    let (ant_message_tx, ant_message_rx) = libant::unbounded();
+    let (ant_message_tx, _ant_message_rx) = libant::unbounded();
     // Usend for sending messages to the application frontend
     //    let (_app_tx, _app_rx) = libant::unbounded();
 
@@ -30,8 +33,14 @@ pub fn run() {
     let flags = AppFlags {
         ant_request_tx: Some(ant_request_tx),
     };
+
+    let window_settings = iced::window::Settings {
+        min_size: Some((1280, 768)),
+        ..Default::default()
+    };
     Application::run(Settings {
         flags: flags,
+        window: window_settings,
         exit_on_close_request: false,
         ..Settings::default()
     })
@@ -79,6 +88,7 @@ struct Application {
     ant_request_tx: libant::Sender<Request>,
     user_profiles: Vec<UserProfile>,
     workouts: Vec<Workout>,
+    menubar: MenuBar,
 }
 
 // Message enum for configuring subscriptions and updates in the application.
@@ -86,11 +96,14 @@ struct Application {
 // application view on a set.
 // EventOccurred watches for different events (could be mouse, key, window, etc)
 // and acts on the events accordingly.
-#[derive(Debug)]
-enum Message {
+#[derive(Debug, Clone)]
+pub enum Message {
     Loaded(Result<SavedState, LoadError>),
     Tick(Instant),
     EventOccurred(Event),
+    ShowWorkouts,
+    ShowDevices,
+    ShowUserProfiles,
 }
 
 // AppFlags are used to pass channels into the application for communication
@@ -123,6 +136,7 @@ impl IcedApplication for Application {
                     .expect("Error 001: Application misconfigured"),
                 user_profiles: vec![],
                 workouts: vec![], //There will be a single default workout always loaded. For now just created an empty vec.
+                menubar: MenuBar::default(),
             },
             Command::perform(SavedState::load(), Message::Loaded),
         )
@@ -190,15 +204,14 @@ impl IcedApplication for Application {
                 // select the default user profile and load the workouts
                 // page for user to select a workout.
                 if self.user_profiles.is_empty() {}
-                Container::new(
-                    Text::new("Create User Profile goes here")
-                        .horizontal_alignment(HorizontalAlignment::Center)
-                        .size(50),
-                )
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .center_y()
-                .into()
+                let content = Column::new()
+                    .width(Length::Shrink)
+                    .height(Length::Shrink)
+                    .push(self.menubar.view());
+                Container::new(content)
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .into()
             }
         }
     }
@@ -240,15 +253,15 @@ struct UserProfile;
 #[derive(Debug, Clone)]
 struct Workout;
 
-#[derive(Debug)]
-struct SavedState {
+#[derive(Debug, Clone)]
+pub struct SavedState {
     user_profiles: Option<Vec<UserProfile>>,
     workouts: Option<Vec<Workout>>,
 }
 
 // TODO: Implement application error logic. Doing this for now.
-#[derive(Debug)]
-enum LoadError {
+#[derive(Debug, Clone)]
+pub enum LoadError {
     DirectoryError,
     FileError,
 }
