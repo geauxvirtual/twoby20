@@ -45,7 +45,7 @@ impl MenuBar {
                     Message::ShowUserProfiles,
                 )),
         )
-        .width(Length::FillPortion(3));
+        .width(Length::FillPortion(6));
 
         // TODO: Add pick list of available user profiles. Display the default
         // profile and list other available profiles to choose from.
@@ -58,7 +58,7 @@ impl MenuBar {
             ),
         )
         .padding(10)
-        .width(Length::FillPortion(3))
+        .width(Length::FillPortion(2))
         .height(Length::Fill);
 
         Row::new()
