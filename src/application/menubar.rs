@@ -1,5 +1,7 @@
 use crate::application::Message;
-use iced::{button, Button, HorizontalAlignment, Length, Row, Text, VerticalAlignment};
+use iced::{
+    button, Button, Container, HorizontalAlignment, Length, Row, Space, Text, VerticalAlignment,
+};
 
 #[derive(Debug, Default, Clone)]
 pub struct MenuBar {
@@ -24,22 +26,45 @@ impl MenuBar {
                 .on_press(message)
         };
 
+        let c1 = Container::new(
+            Row::new()
+                .width(Length::Fill)
+                .push(menu_button(
+                    &mut self.workouts_button,
+                    "Workouts",
+                    Message::ShowWorkouts,
+                ))
+                .push(menu_button(
+                    &mut self.devices_button,
+                    "Devices",
+                    Message::ShowDevices,
+                ))
+                .push(menu_button(
+                    &mut self.userprofiles_button,
+                    "User Profiles",
+                    Message::ShowUserProfiles,
+                )),
+        )
+        .width(Length::FillPortion(3));
+
+        // TODO: Add pick list of available user profiles. Display the default
+        // profile and list other available profiles to choose from.
+        let c3 = Container::new(
+            Row::new().width(Length::Fill).push(
+                Text::new("User Profile:")
+                    .size(16)
+                    .horizontal_alignment(HorizontalAlignment::Center)
+                    .vertical_alignment(VerticalAlignment::Center),
+            ),
+        )
+        .padding(10)
+        .width(Length::FillPortion(3))
+        .height(Length::Fill);
+
         Row::new()
             .width(Length::Fill)
-            .push(menu_button(
-                &mut self.workouts_button,
-                "Workouts",
-                Message::ShowWorkouts,
-            ))
-            .push(menu_button(
-                &mut self.devices_button,
-                "Devices",
-                Message::ShowDevices,
-            ))
-            .push(menu_button(
-                &mut self.userprofiles_button,
-                "User Profiles",
-                Message::ShowUserProfiles,
-            ))
+            .push(c1)
+            .push(Space::new(Length::FillPortion(3), Length::Shrink))
+            .push(c3)
     }
 }
