@@ -16,7 +16,10 @@ use iced_native::{subscription, window, Event};
 use libant::Request;
 
 mod menubar;
+mod user_profile;
 use menubar::MenuBar;
+use user_profile::UserProfile;
+
 // Run() is the main function to call. This handles starting up all the
 // threads and configuring the channels.
 pub fn run() {
@@ -245,8 +248,6 @@ fn initializing_message<'a>() -> Element<'a, Message> {
 // default = true
 //
 // TODO move these to their own files under application/
-#[derive(Debug, Clone)]
-struct UserProfile;
 #[derive(Debug, Clone)]
 struct Workout;
 
