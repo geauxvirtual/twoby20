@@ -204,13 +204,10 @@ impl IcedApplication for Application {
                 // select the default user profile and load the workouts
                 // page for user to select a workout.
                 if self.user_profiles.is_empty() {}
-                let content = Column::new()
-                    .width(Length::Shrink)
-                    .height(Length::Shrink)
-                    .push(self.menubar.view());
-                Container::new(content)
+                Column::new()
                     .width(Length::Fill)
                     .height(Length::Fill)
+                    .push(self.menubar.view())
                     .into()
             }
         }
