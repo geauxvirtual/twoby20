@@ -1,12 +1,14 @@
 use iced::{
-    button, text_input, Align, Button, Checkbox, Column, Container, Element, Length, Row, Text,
-    TextInput,
+    button, text_input, Align, Button, Column, Container, Element, Length, Row, Text, TextInput,
 };
+
+use log::error;
 
 // UserProfile to allow multiple users of the software. Allows for a user
 // to easily have workouts adjusted based on their FTP setting.
 
 // TODO Improve the styling.
+// TODO Capture tabs to change focus of input fields
 #[derive(Debug, Clone)]
 pub struct UserProfile {
     name: String,
@@ -48,6 +50,23 @@ impl UserProfile {
 
     pub fn active(&self) -> bool {
         self.active
+    }
+
+    pub fn update(&mut self, message: UserProfileMessage) {
+        match message {
+            UserProfileMessage::NameInputChanged(value) => self.name = value,
+            UserProfileMessage::FtpInputChanged(value) => {
+                match value.parse::<u16>() {
+                    Ok(v) => self.ftp = v,
+                    Err(_) => error!("Invalid value entered for FTP"),
+                }
+                //TODO: Have an error field that can be displayed to user when
+                //and invalid value is entered
+            }
+            // SaveProfile and Delete Profile are handled by the main application
+            // update() method
+            _ => {}
+        }
     }
 
     pub fn view(&mut self) -> Element<UserProfileMessage> {

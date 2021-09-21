@@ -219,6 +219,14 @@ impl IcedApplication for Application {
                             self.should_exit = true;
                         }
                     }
+                    Message::UserProfileMessage(i, UserProfileMessage::SaveProfile) => {
+                        self.screen_state = ScreenState::Workouts
+                    }
+                    Message::UserProfileMessage(i, user_profile_message) => {
+                        if let Some(profile) = self.user_profiles.get_mut(i) {
+                            profile.update(user_profile_message);
+                        }
+                    }
                     _ => {}
                 }
             }
