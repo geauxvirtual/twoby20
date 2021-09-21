@@ -118,7 +118,7 @@ pub enum Message {
     EventOccurred(Event),
     ShowWorkouts,
     ShowDevices,
-    ShowUserProfiles,
+    ShowUserProfile,
     UserProfileMessage(usize, UserProfileMessage),
 }
 
@@ -219,6 +219,9 @@ impl IcedApplication for Application {
                             self.should_exit = true;
                         }
                     }
+                    Message::ShowUserProfile => self.screen_state = ScreenState::UserProfile,
+                    Message::ShowWorkouts => self.screen_state = ScreenState::Workouts,
+                    Message::ShowDevices => self.screen_state = ScreenState::Devices,
                     Message::UserProfileMessage(i, UserProfileMessage::SaveProfile) => {
                         self.screen_state = ScreenState::Workouts
                     }

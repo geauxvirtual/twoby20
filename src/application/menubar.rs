@@ -42,7 +42,7 @@ impl MenuBar {
                 .push(menu_button(
                     &mut self.userprofiles_button,
                     "User Profiles",
-                    Message::ShowUserProfiles,
+                    Message::ShowUserProfile,
                 )),
         )
         .width(Length::FillPortion(3))
