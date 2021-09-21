@@ -7,7 +7,7 @@ use iced::{
 pub struct MenuBar {
     workouts_button: button::State,
     devices_button: button::State,
-    userprofiles_button: button::State,
+    userprofile_button: button::State,
 }
 
 impl MenuBar {
@@ -40,7 +40,7 @@ impl MenuBar {
                     Message::ShowDevices,
                 ))
                 .push(menu_button(
-                    &mut self.userprofiles_button,
+                    &mut self.userprofile_button,
                     "User Profile",
                     Message::ShowUserProfile,
                 )),
