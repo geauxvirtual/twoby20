@@ -14,7 +14,7 @@ use iced::{
 };
 use iced_native::{subscription, window, Event};
 use libant::Request;
-use log::{error, info};
+use log::{debug, error, info};
 
 mod menubar;
 mod user_profile;
@@ -222,6 +222,27 @@ impl IcedApplication for Application {
                     Message::ShowUserProfile => self.screen_state = ScreenState::UserProfile,
                     Message::ShowWorkouts => self.screen_state = ScreenState::Workouts,
                     Message::ShowDevices => self.screen_state = ScreenState::Devices,
+                    Message::UserProfileMessage(i, UserProfileMessage::DeleteProfile) => {
+                        // We delete the requested profile. If this leaves no profiles,
+                        // then we create a new profile. The application requires
+                        // a profile in order to function
+                        // TODO: Decide if we should show a list of available profiles
+                        // and allow for actions to occur outside of current
+                        // active profile
+                        debug!("Removing user profile {}", i);
+                        // We always set the active profile to the first available
+                        // profile after deletion. We are always deleting the current
+                        // active profile (in current iteration)
+                        self.user_profiles.remove(i);
+                        self.active_user_profile = Some(0);
+                        if self.user_profiles.len() == 0 {
+                            self.user_profiles.push(UserProfile::new(true));
+                        } else {
+                            self.user_profiles[0].set_active(true);
+                        }
+                        // If user_profile removed equals active_user_profile,
+                        // select next available user profile as active_user_profile.
+                    }
                     Message::UserProfileMessage(i, user_profile_message) => {
                         if let Some(profile) = self.user_profiles.get_mut(i) {
                             profile.update(user_profile_message);

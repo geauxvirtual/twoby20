@@ -41,7 +41,7 @@ impl MenuBar {
                 ))
                 .push(menu_button(
                     &mut self.userprofiles_button,
-                    "User Profiles",
+                    "User Profile",
                     Message::ShowUserProfile,
                 )),
         )
