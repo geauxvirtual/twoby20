@@ -14,11 +14,12 @@ use iced::{
 };
 use iced_native::{subscription, window, Event};
 use libant::Request;
+use log::{error, info};
 
 mod menubar;
 mod user_profile;
 use menubar::MenuBar;
-use user_profile::UserProfile;
+use user_profile::{UserProfile, UserProfileMessage};
 
 // Run() is the main function to call. This handles starting up all the
 // threads and configuring the channels.
@@ -83,12 +84,23 @@ enum AppState {
     //    ActivityEnded
 }
 
+enum ScreenState {
+    UserProfile,
+    Workouts,
+    Devices,
+}
 // Main application structure for handling state changes and views of the
 // application.
+// TODO: Add a screen state enum that will handle what screen to display.
+// (Future) Add history tracking of any selected workout from workouts
+// screen so user can be brought back to selected workout if they click
+// on another screen button.
 struct Application {
     state: AppState,
+    screen_state: ScreenState,
     should_exit: bool,
     ant_request_tx: libant::Sender<Request>,
+    active_user_profile: Option<usize>,
     user_profiles: Vec<UserProfile>,
     workouts: Vec<Workout>,
     menubar: MenuBar,
@@ -107,6 +119,7 @@ pub enum Message {
     ShowWorkouts,
     ShowDevices,
     ShowUserProfiles,
+    UserProfileMessage(usize, UserProfileMessage),
 }
 
 // AppFlags are used to pass channels into the application for communication
@@ -133,11 +146,13 @@ impl IcedApplication for Application {
         (
             Application {
                 state: AppState::Starting,
+                screen_state: ScreenState::Workouts,
                 should_exit: false,
                 ant_request_tx: flags
                     .ant_request_tx
                     .expect("Error 001: Application misconfigured"),
                 user_profiles: vec![],
+                active_user_profile: None,
                 workouts: vec![], //There will be a single default workout always loaded. For now just created an empty vec.
                 menubar: MenuBar::default(),
             },
@@ -161,6 +176,30 @@ impl IcedApplication for Application {
                     }
                     if let Some(user_profiles) = state.user_profiles {
                         self.user_profiles.extend_from_slice(&user_profiles);
+                        for (i, profile) in self.user_profiles.iter_mut().enumerate() {
+                            if profile.active() {
+                                if self.active_user_profile.is_some() {
+                                    error!("Multiple user profiles set as active. Leaving first profile set as active");
+                                    profile.set_active(false);
+                                }
+                                self.active_user_profile = Some(i);
+                            }
+                        }
+                        // We loaded profiles from saved state, but no profiles
+                        // were set to active. Set first profile loaded to active
+                        if self.active_user_profile.is_none() {
+                            self.active_user_profile = Some(0);
+                            self.user_profiles[0].set_active(true);
+                        }
+                    }
+                    // If no user profiles are found, create a default UserProfle
+                    // and set screen_state to ScreenState::UserProfile
+                    if self.user_profiles.len() == 0 {
+                        info!("Creating default user profile");
+                        self.user_profiles.push(UserProfile::new(true));
+                        self.active_user_profile = Some(0);
+                        info!("Setting screen_state to ScreenState::UserProfile");
+                        self.screen_state = ScreenState::UserProfile;
                     }
                     self.state = AppState::Ready;
                 }
@@ -206,11 +245,42 @@ impl IcedApplication for Application {
                 // create a user profile. If we have user profiles,
                 // select the default user profile and load the workouts
                 // page for user to select a workout.
-                if self.user_profiles.is_empty() {}
+
+                // TODO: Use the screen state enum to generate main
+                // screen page from either workouts, devices, or user profile.
+                // If no user profiles are loaded from a saved state, create
+                // a new user profile and show the user the user profile page
+                // so they can edit the fields and save the data.
+                // Each page returns a Container::new() that will be sized to
+                // fill all the available space.
+                //
+                let main_screen = match self.screen_state {
+                    ScreenState::UserProfile => {
+                        // By default, we create a dummy user account if none
+                        // are found in the SavedState. When loading from SavedState,
+                        // at least one profile should be set as active. We'll
+                        // unwrap this value to throw a panic to show we missed
+                        // something in our code.
+                        let active_user_profile = self
+                            .active_user_profile
+                            .expect("Active user profile should not be set to none at this point");
+                        self.user_profiles[active_user_profile]
+                            .view()
+                            .map(move |message| {
+                                Message::UserProfileMessage(active_user_profile, message)
+                            })
+                    }
+                    _ => Container::new(
+                        Column::new().push(Text::new("This shouldn't be seen yet").size(40)),
+                    )
+                    .into(),
+                };
+
                 Column::new()
                     .width(Length::Fill)
                     .height(Length::Fill)
                     .push(self.menubar.view())
+                    .push(main_screen)
                     .into()
             }
         }
