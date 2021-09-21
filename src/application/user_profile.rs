@@ -9,12 +9,22 @@ use log::error;
 
 // TODO Improve the styling.
 // TODO Capture tabs to change focus of input fields
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct UserProfile {
+    // First three fields will be serialized into a TOML file
+    // Name field
     name: String,
+    // FTP field
     ftp: u16,
+    // Active field for if
     active: bool,
     state: UserProfileState,
+
+    // These fields are used for capturing input data prior to saving.
+    // Can also have a previous field if someone doesn't want to change
+    // a field. (future)
+    name_input: String,
+    ftp_input: String,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -37,10 +47,9 @@ impl UserProfile {
     // Create a dummy account that user will update
     pub fn new(active: bool) -> Self {
         Self {
-            name: "John Doe".to_string(),
-            ftp: 200,
             active: active,
             state: Default::default(),
+            ..Default::default()
         }
     }
 
@@ -54,14 +63,21 @@ impl UserProfile {
 
     pub fn update(&mut self, message: UserProfileMessage) {
         match message {
-            UserProfileMessage::NameInputChanged(value) => self.name = value,
-            UserProfileMessage::FtpInputChanged(value) => {
-                match value.parse::<u16>() {
+            UserProfileMessage::NameInputChanged(value) => self.name_input = value,
+            UserProfileMessage::FtpInputChanged(value) => self.ftp_input = value,
+            UserProfileMessage::SaveProfile => {
+                self.name = self.name_input.clone();
+                match self.ftp_input.parse::<u16>() {
                     Ok(v) => self.ftp = v,
-                    Err(_) => error!("Invalid value entered for FTP"),
+                    Err(_) => {
+                        //TODO Should display error message on screen
+                        // Should possibly disabling changing screen state
+                        // until valid value is entered
+                        error!("Invalid FTP value");
+                    }
                 }
-                //TODO: Have an error field that can be displayed to user when
-                //and invalid value is entered
+                self.name_input.clear();
+                self.ftp_input.clear();
             }
             // SaveProfile and Delete Profile are handled by the main application
             // update() method
@@ -71,6 +87,13 @@ impl UserProfile {
 
     pub fn view(&mut self) -> Element<UserProfileMessage> {
         let field_text = |text| Text::new(text).size(16).width(Length::Units(50));
+        // If we are not a new profile, then set the inputs to the current profile
+        if self.name != "" {
+            self.name_input = self.name.clone();
+        }
+        if self.ftp != 0 {
+            self.ftp_input = self.ftp.to_string();
+        }
         Container::new(
             Column::new()
                 .spacing(10)
@@ -83,8 +106,8 @@ impl UserProfile {
                         .push(
                             TextInput::new(
                                 &mut self.state.name_input_field,
-                                "Name",
-                                &self.name,
+                                "John Doe",
+                                &self.name_input,
                                 UserProfileMessage::NameInputChanged,
                             )
                             .padding(8)
@@ -101,8 +124,8 @@ impl UserProfile {
                         .push(
                             TextInput::new(
                                 &mut self.state.ftp_input_field,
-                                "FTP",
-                                &self.ftp.to_string(),
+                                "200",
+                                &self.ftp_input,
                                 UserProfileMessage::FtpInputChanged,
                             )
                             .padding(8)

@@ -222,9 +222,6 @@ impl IcedApplication for Application {
                     Message::ShowUserProfile => self.screen_state = ScreenState::UserProfile,
                     Message::ShowWorkouts => self.screen_state = ScreenState::Workouts,
                     Message::ShowDevices => self.screen_state = ScreenState::Devices,
-                    Message::UserProfileMessage(i, UserProfileMessage::SaveProfile) => {
-                        self.screen_state = ScreenState::Workouts
-                    }
                     Message::UserProfileMessage(i, user_profile_message) => {
                         if let Some(profile) = self.user_profiles.get_mut(i) {
                             profile.update(user_profile_message);
