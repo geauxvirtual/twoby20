@@ -1,7 +1,12 @@
 use iced::{
-    button, text_input, Button, Checkbox, Column, Container, Element, Length, Row, Text, TextInput,
+    button, text_input, Align, Button, Checkbox, Column, Container, Element, Length, Row, Text,
+    TextInput,
 };
 
+// UserProfile to allow multiple users of the software. Allows for a user
+// to easily have workouts adjusted based on their FTP setting.
+
+// TODO Improve the styling.
 #[derive(Debug, Clone)]
 pub struct UserProfile {
     name: String,
@@ -22,6 +27,7 @@ pub struct UserProfileState {
 pub enum UserProfileMessage {
     NameInputChanged(String),
     FtpInputChanged(String),
+    SaveProfile,
     DeleteProfile,
 }
 
@@ -45,41 +51,66 @@ impl UserProfile {
     }
 
     pub fn view(&mut self) -> Element<UserProfileMessage> {
+        let field_text = |text| Text::new(text).size(16).width(Length::Units(50));
         Container::new(
             Column::new()
-                .width(Length::Shrink)
+                .spacing(10)
+                .width(Length::Units(300))
                 .height(Length::Shrink)
                 .push(Text::new("User Profile").size(30))
                 .push(
                     Row::new()
-                        .push(Text::new("Name: ").size(16))
-                        .push(TextInput::new(
-                            &mut self.state.name_input_field,
-                            "Name",
-                            &self.name,
-                            UserProfileMessage::NameInputChanged,
-                        )),
+                        .push(field_text("Name:"))
+                        .push(
+                            TextInput::new(
+                                &mut self.state.name_input_field,
+                                "Name",
+                                &self.name,
+                                UserProfileMessage::NameInputChanged,
+                            )
+                            .padding(8)
+                            .width(Length::Units(100))
+                            .size(16),
+                        )
+                        .spacing(10)
+                        .align_items(Align::Center)
+                        .width(Length::Units(200)),
                 )
                 .push(
                     Row::new()
-                        .push(Text::new("FTP: ").size(16))
-                        .push(TextInput::new(
-                            &mut self.state.ftp_input_field,
-                            "FTP",
-                            &self.ftp.to_string(),
-                            UserProfileMessage::FtpInputChanged,
-                        )),
+                        .push(field_text("FTP:"))
+                        .push(
+                            TextInput::new(
+                                &mut self.state.ftp_input_field,
+                                "FTP",
+                                &self.ftp.to_string(),
+                                UserProfileMessage::FtpInputChanged,
+                            )
+                            .padding(8)
+                            .width(Length::Units(100))
+                            .size(16),
+                        )
+                        .spacing(10)
+                        .align_items(Align::Center)
+                        .width(Length::Units(200)),
                 )
-                //                .push(Checkbox::new(
-                //                    self.active,
-                //                    "Set as active profile",
-                //                    UserProfileMessage::ProfileActive,
-                //                ))
                 .push(
-                    Row::new().push(
-                        Button::new(&mut self.state.delete_button, Text::new("Delete").size(16))
+                    Row::new()
+                        .spacing(20)
+                        .width(Length::Units(200))
+                        .push(
+                            Button::new(&mut self.state.save_button, Text::new("Save").size(16))
+                                .on_press(UserProfileMessage::SaveProfile)
+                                .padding(8),
+                        )
+                        .push(
+                            Button::new(
+                                &mut self.state.delete_button,
+                                Text::new("Delete").size(16),
+                            )
+                            .padding(8)
                             .on_press(UserProfileMessage::DeleteProfile),
-                    ),
+                        ),
                 ),
         )
         .width(Length::Fill)
