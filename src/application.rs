@@ -19,7 +19,7 @@ use log::{debug, error, info};
 mod menubar;
 mod user_profile;
 use menubar::MenuBar;
-use user_profile::{UserProfile, UserProfileMessage};
+use user_profile::{UserProfile, UserProfileMessage, UserProfileState};
 
 // Run() is the main function to call. This handles starting up all the
 // threads and configuring the channels.
@@ -104,6 +104,7 @@ struct Application {
     user_profiles: Vec<UserProfile>,
     workouts: Vec<Workout>,
     menubar: MenuBar,
+    user_profile_screen: UserProfileState,
 }
 
 // Message enum for configuring subscriptions and updates in the application.
@@ -120,6 +121,7 @@ pub enum Message {
     ShowDevices,
     ShowUserProfile,
     UserProfileMessage(usize, UserProfileMessage),
+    UserProfileSelected(UserProfile),
 }
 
 // AppFlags are used to pass channels into the application for communication
@@ -155,6 +157,7 @@ impl IcedApplication for Application {
                 active_user_profile: None,
                 workouts: vec![], //There will be a single default workout always loaded. For now just created an empty vec.
                 menubar: MenuBar::default(),
+                user_profile_screen: UserProfileState::default(),
             },
             Command::perform(SavedState::load(), Message::Loaded),
         )
@@ -222,6 +225,15 @@ impl IcedApplication for Application {
                     Message::ShowUserProfile => self.screen_state = ScreenState::UserProfile,
                     Message::ShowWorkouts => self.screen_state = ScreenState::Workouts,
                     Message::ShowDevices => self.screen_state = ScreenState::Devices,
+                    Message::UserProfileMessage(i, UserProfileMessage::SaveProfile(name, ftp)) => {
+                        info!("Saving user profile {}", i);
+                        if let Some(profile) = self.user_profiles.get_mut(i) {
+                            profile.set_name(&name);
+                            profile.set_ftp(ftp);
+                        }
+                        self.user_profile_screen
+                            .update(UserProfileMessage::Editing(false));
+                    }
                     Message::UserProfileMessage(i, UserProfileMessage::DeleteProfile) => {
                         // We delete the requested profile. If this leaves no profiles,
                         // then we create a new profile. The application requires
@@ -229,24 +241,20 @@ impl IcedApplication for Application {
                         // TODO: Decide if we should show a list of available profiles
                         // and allow for actions to occur outside of current
                         // active profile
-                        debug!("Removing user profile {}", i);
+                        info!("Removing user profile {}", i);
                         // We always set the active profile to the first available
                         // profile after deletion. We are always deleting the current
                         // active profile (in current iteration)
                         self.user_profiles.remove(i);
                         self.active_user_profile = Some(0);
+                        // If we have no user profiles, create a default one
                         if self.user_profiles.len() == 0 {
                             self.user_profiles.push(UserProfile::new(true));
-                        } else {
-                            self.user_profiles[0].set_active(true);
                         }
-                        // If user_profile removed equals active_user_profile,
-                        // select next available user profile as active_user_profile.
+                        self.user_profile_screen.update(UserProfileMessage::Clear);
                     }
-                    Message::UserProfileMessage(i, user_profile_message) => {
-                        if let Some(profile) = self.user_profiles.get_mut(i) {
-                            profile.update(user_profile_message);
-                        }
+                    Message::UserProfileMessage(_, user_profile_message) => {
+                        self.user_profile_screen.update(user_profile_message)
                     }
                     _ => {}
                 }
@@ -293,11 +301,16 @@ impl IcedApplication for Application {
                         let active_user_profile = self
                             .active_user_profile
                             .expect("Active user profile should not be set to none at this point");
-                        self.user_profiles[active_user_profile]
-                            .view()
+                        self.user_profile_screen
+                            .view(&self.user_profiles[active_user_profile])
                             .map(move |message| {
                                 Message::UserProfileMessage(active_user_profile, message)
                             })
+                        //self.user_profiles[active_user_profile]
+                        //    .view()
+                        //    .map(move |message| {
+                        //        Message::UserProfileMessage(active_user_profile, message)
+                        //    })
                     }
                     _ => Container::new(
                         Column::new().push(Text::new("This shouldn't be seen yet").size(40)),

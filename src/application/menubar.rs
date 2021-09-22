@@ -1,6 +1,8 @@
+use crate::application::user_profile::UserProfile;
 use crate::application::Message;
 use iced::{
-    button, Button, Container, HorizontalAlignment, Length, Row, Space, Text, VerticalAlignment,
+    button, pick_list, Button, Container, HorizontalAlignment, Length, PickList, Row, Space, Text,
+    VerticalAlignment,
 };
 
 #[derive(Debug, Default, Clone)]
@@ -8,6 +10,7 @@ pub struct MenuBar {
     workouts_button: button::State,
     devices_button: button::State,
     userprofile_button: button::State,
+    userprofiles_picklist: pick_list::State<UserProfile>,
 }
 
 impl MenuBar {
@@ -51,12 +54,20 @@ impl MenuBar {
         // TODO: Add pick list of available user profiles. Display the default
         // profile and list other available profiles to choose from.
         let c3 = Container::new(
-            Row::new().width(Length::Fill).push(
-                Text::new("User Profile:")
-                    .size(16)
-                    .horizontal_alignment(HorizontalAlignment::Center)
-                    .vertical_alignment(VerticalAlignment::Center),
-            ),
+            Row::new()
+                .width(Length::Fill)
+                .push(
+                    Text::new("User Profile:")
+                        .size(16)
+                        .horizontal_alignment(HorizontalAlignment::Center)
+                        .vertical_alignment(VerticalAlignment::Center),
+                )
+                //.push(PickList::new(
+                //    &mut self.userprofiles_picklist,
+                //    profiles[..],
+                //    Some(profiles[active_user_profile]),
+                //    Message::UserProfileSelected,
+                //)),
         )
         .padding(10)
         .width(Length::FillPortion(2))
