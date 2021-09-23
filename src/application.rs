@@ -91,8 +91,7 @@ enum ScreenState {
 }
 // Main application structure for handling state changes and views of the
 // application.
-// TODO: Add a screen state enum that will handle what screen to display.
-// (Future) Add history tracking of any selected workout from workouts
+// TODO: (Future) Add history tracking of any selected workout from workouts
 // screen so user can be brought back to selected workout if they click
 // on another screen button.
 struct Application {
