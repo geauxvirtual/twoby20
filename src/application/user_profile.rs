@@ -9,7 +9,7 @@ use log::error;
 
 // TODO Improve the styling.
 // TODO Capture tabs to change focus of input fields
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct UserProfile {
     // First three fields will be serialized into a TOML file
     // Name field
@@ -26,6 +26,12 @@ pub struct UserProfile {
     // a field. (future)
     //name_input: String,
     //ftp_input: String,
+}
+
+impl std::fmt::Display for UserProfile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
+    }
 }
 
 impl UserProfile {

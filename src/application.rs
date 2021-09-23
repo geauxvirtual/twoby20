@@ -321,7 +321,10 @@ impl IcedApplication for Application {
                 Column::new()
                     .width(Length::Fill)
                     .height(Length::Fill)
-                    .push(self.menubar.view())
+                    .push(
+                        self.menubar
+                            .view(&self.user_profiles, self.active_user_profile.unwrap()),
+                    )
                     .push(main_screen)
                     .into()
             }

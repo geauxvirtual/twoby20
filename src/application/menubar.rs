@@ -14,7 +14,7 @@ pub struct MenuBar {
 }
 
 impl MenuBar {
-    pub fn view(&mut self) -> Row<Message> {
+    pub fn view(&mut self, profiles: &[UserProfile], active_user_profile: usize) -> Row<Message> {
         let menu_button = |state, label, message| {
             let label = Text::new(label)
                 .size(16)
@@ -62,12 +62,12 @@ impl MenuBar {
                         .horizontal_alignment(HorizontalAlignment::Center)
                         .vertical_alignment(VerticalAlignment::Center),
                 )
-                //.push(PickList::new(
-                //    &mut self.userprofiles_picklist,
-                //    profiles[..],
-                //    Some(profiles[active_user_profile]),
-                //    Message::UserProfileSelected,
-                //)),
+                .push(PickList::new(
+                    &mut self.userprofiles_picklist,
+                    profiles.to_owned(),
+                    Some(profiles[active_user_profile].clone()),
+                    Message::UserProfileSelected,
+                )),
         )
         .padding(10)
         .width(Length::FillPortion(2))
