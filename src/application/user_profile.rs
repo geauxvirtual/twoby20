@@ -134,6 +134,10 @@ impl UserProfileState {
                 self.ftp_input = profile.ftp.to_string();
             }
         }
+
+        // TODO: Set buttons as active/deactive based on profile passed into view.
+        // If it's the default profile for creation, disable the delete button.
+        // Only enable the save button if something has changed..
         Container::new(
             Column::new()
                 .spacing(10)
