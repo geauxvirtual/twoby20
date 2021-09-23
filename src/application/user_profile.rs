@@ -30,7 +30,12 @@ pub struct UserProfile {
 
 impl std::fmt::Display for UserProfile {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.name)
+        let name = if self.name.len() == 0 {
+            "New..."
+        } else {
+            &self.name
+        };
+        write!(f, "{}", name)
     }
 }
 

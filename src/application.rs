@@ -94,12 +94,16 @@ enum ScreenState {
 // TODO: (Future) Add history tracking of any selected workout from workouts
 // screen so user can be brought back to selected workout if they click
 // on another screen button.
+// (9/23) UserProfiles are created with a default "new" profile as profile 0.
+// This profile is never removed. It's there so there is a "New..." or "Create.."
+// field in the pick list (if pick list is maintained). First user profile will
+// always be 1.
 struct Application {
     state: AppState,
     screen_state: ScreenState,
     should_exit: bool,
     ant_request_tx: libant::Sender<Request>,
-    active_user_profile: Option<usize>,
+    active_user_profile: usize,
     user_profiles: Vec<UserProfile>,
     workouts: Vec<Workout>,
     menubar: MenuBar,
@@ -152,8 +156,8 @@ impl IcedApplication for Application {
                 ant_request_tx: flags
                     .ant_request_tx
                     .expect("Error 001: Application misconfigured"),
-                user_profiles: vec![],
-                active_user_profile: None,
+                user_profiles: vec![UserProfile::new(true)],
+                active_user_profile: 0,
                 workouts: vec![], //There will be a single default workout always loaded. For now just created an empty vec.
                 menubar: MenuBar::default(),
                 user_profile_screen: UserProfileState::default(),
@@ -180,26 +184,23 @@ impl IcedApplication for Application {
                         self.user_profiles.extend_from_slice(&user_profiles);
                         for (i, profile) in self.user_profiles.iter_mut().enumerate() {
                             if profile.active() {
-                                if self.active_user_profile.is_some() {
+                                if self.active_user_profile != 0 {
                                     error!("Multiple user profiles set as active. Leaving first profile set as active");
                                     profile.set_active(false);
                                 }
-                                self.active_user_profile = Some(i);
+                                self.active_user_profile = i;
                             }
                         }
                         // We loaded profiles from saved state, but no profiles
                         // were set to active. Set first profile loaded to active
-                        if self.active_user_profile.is_none() {
-                            self.active_user_profile = Some(0);
-                            self.user_profiles[0].set_active(true);
+                        if self.active_user_profile == 0 {
+                            self.active_user_profile = 1;
+                            self.user_profiles[1].set_active(true);
                         }
                     }
-                    // If no user profiles are found, create a default UserProfle
-                    // and set screen_state to ScreenState::UserProfile
-                    if self.user_profiles.len() == 0 {
-                        info!("Creating default user profile");
-                        self.user_profiles.push(UserProfile::new(true));
-                        self.active_user_profile = Some(0);
+                    // If no user profiles were loaded, set screen state to
+                    // UserProfile so a user profile can be created
+                    if self.active_user_profile == 0 {
                         info!("Setting screen_state to ScreenState::UserProfile");
                         self.screen_state = ScreenState::UserProfile;
                     }
@@ -225,10 +226,22 @@ impl IcedApplication for Application {
                     Message::ShowWorkouts => self.screen_state = ScreenState::Workouts,
                     Message::ShowDevices => self.screen_state = ScreenState::Devices,
                     Message::UserProfileMessage(i, UserProfileMessage::SaveProfile(name, ftp)) => {
-                        info!("Saving user profile {}", i);
-                        if let Some(profile) = self.user_profiles.get_mut(i) {
+                        // Check to see if we are creating or updating a profile.
+                        // i will be 0 when creating a profile.
+                        if i == 0 {
+                            // Create a new profile
+                            info!("Creating user profile {}", self.user_profiles.len());
+                            let mut profile = UserProfile::new(true);
                             profile.set_name(&name);
                             profile.set_ftp(ftp);
+                            self.user_profiles.push(profile);
+                            self.active_user_profile = self.user_profiles.len() - 1;
+                        } else {
+                            info!("Saving user profile {}", i);
+                            if let Some(profile) = self.user_profiles.get_mut(i) {
+                                profile.set_name(&name);
+                                profile.set_ftp(ftp);
+                            }
                         }
                         self.user_profile_screen
                             .update(UserProfileMessage::Editing(false));
@@ -240,15 +253,23 @@ impl IcedApplication for Application {
                         // TODO: Decide if we should show a list of available profiles
                         // and allow for actions to occur outside of current
                         // active profile
+                        // TODO: Disable delete button when creating a profile. For now
+                        // just add a check to remove later.
+                        if i == 0 {
+                            error!("Trying to delete default profile");
+                            self.user_profile_screen.update(UserProfileMessage::Clear);
+                            return Command::none();
+                        }
                         info!("Removing user profile {}", i);
                         // We always set the active profile to the first available
                         // profile after deletion. We are always deleting the current
                         // active profile (in current iteration)
                         self.user_profiles.remove(i);
-                        self.active_user_profile = Some(0);
-                        // If we have no user profiles, create a default one
-                        if self.user_profiles.len() == 0 {
-                            self.user_profiles.push(UserProfile::new(true));
+                        if self.user_profiles.len() == 1 {
+                            // All user profiles have been deleted
+                            self.active_user_profile = 0;
+                        } else {
+                            self.active_user_profile = 1;
                         }
                         self.user_profile_screen.update(UserProfileMessage::Clear);
                     }
@@ -297,9 +318,10 @@ impl IcedApplication for Application {
                         // at least one profile should be set as active. We'll
                         // unwrap this value to throw a panic to show we missed
                         // something in our code.
-                        let active_user_profile = self
-                            .active_user_profile
-                            .expect("Active user profile should not be set to none at this point");
+                        //let active_user_profile = self
+                        //    .active_user_profile
+                        //    .expect("Active user profile should not be set to none at this point");
+                        let active_user_profile = self.active_user_profile;
                         self.user_profile_screen
                             .view(&self.user_profiles[active_user_profile])
                             .map(move |message| {
@@ -322,7 +344,7 @@ impl IcedApplication for Application {
                     .height(Length::Fill)
                     .push(
                         self.menubar
-                            .view(&self.user_profiles, self.active_user_profile.unwrap()),
+                            .view(&self.user_profiles, self.active_user_profile),
                     )
                     .push(main_screen)
                     .into()
