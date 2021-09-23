@@ -19,17 +19,14 @@ pub struct UserProfile {
     // Active field for setting active profile when SavingState. Default will
     // be last active profile.
     active: bool,
-    //state: UserProfileState,
-
-    // These fields are used for capturing input data prior to saving.
-    // Can also have a previous field if someone doesn't want to change
-    // a field. (future)
-    //name_input: String,
-    //ftp_input: String,
 }
 
 impl std::fmt::Display for UserProfile {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        //One issue here is that any time Display is called for this
+        //struct, the initial default user will be displayed as "New..."
+        //This can be worked around by only displaying profiles from [1..]
+        //if we ever need to loop through profiles and display them.
         let name = if self.name.len() == 0 {
             "New..."
         } else {
@@ -96,23 +93,6 @@ pub enum UserProfileMessage {
 }
 
 impl UserProfileState {
-    // Create a dummy account that user will update
-    //pub fn new(active: bool) -> Self {
-    //    Self {
-    //        active: active,
-    //        state: Default::default(),
-    //        ..Default::default()
-    //    }
-    //}
-
-    //pub fn set_active(&mut self, active: bool) {
-    //    self.active = active;
-    //}
-
-    //pub fn active(&self) -> bool {
-    //    self.active
-    //}
-
     pub fn update(&mut self, message: UserProfileMessage) {
         match message {
             UserProfileMessage::NameInputChanged(value) => {
@@ -138,22 +118,6 @@ impl UserProfileState {
             UserProfileMessage::Editing(editing) => {
                 self.editing = editing;
             }
-            //UserProfileMessage::SaveProfile(_, _) => {
-            //    self.name = self.name_input.clone();
-            //    match self.ftp_input.parse::<u16>() {
-            //        Ok(v) => self.ftp = v,
-            //        Err(_) => {
-            //            //TODO Should display error message on screen
-            //            // Should possibly disabling changing screen state
-            //            // until valid value is entered
-            //            error!("Invalid FTP value");
-            //        }
-            //    }
-            //    self.name_input.clear();
-            //    self.ftp_input.clear();
-            //}
-            // SaveProfile and Delete Profile are handled by the main application
-            // update() method
             _ => {}
         }
     }
