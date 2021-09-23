@@ -228,6 +228,9 @@ impl IcedApplication for Application {
                     Message::UserProfileMessage(i, UserProfileMessage::SaveProfile(name, ftp)) => {
                         // Check to see if we are creating or updating a profile.
                         // i will be 0 when creating a profile.
+                        // TODO Validate name isn't empty. Return an error back
+                        // to UserProfile screen to display instead. Or disable
+                        // Save button unless input field has valid data.
                         if i == 0 {
                             // Create a new profile
                             info!("Creating user profile {}", self.user_profiles.len());
@@ -275,6 +278,22 @@ impl IcedApplication for Application {
                     }
                     Message::UserProfileMessage(_, user_profile_message) => {
                         self.user_profile_screen.update(user_profile_message)
+                    }
+                    Message::UserProfileSelected(profile) => {
+                        // May be a better way to do this to get index of profile
+                        // sent with profile because we only care about the index.
+                        // Find user profile. Set active_user_profile to selected profile.
+                        for (i, p) in self.user_profiles.iter().enumerate() {
+                            if profile == *p {
+                                self.user_profile_screen.update(UserProfileMessage::Clear);
+                                self.active_user_profile = i;
+                                // If profile is default profile, change screen state
+                                // for a user to be created.
+                                if i == 0 {
+                                    self.screen_state = ScreenState::UserProfile;
+                                }
+                            }
+                        }
                     }
                     _ => {}
                 }
