@@ -135,9 +135,32 @@ impl UserProfileState {
             }
         }
 
-        // TODO: Set buttons as active/deactive based on profile passed into view.
-        // If it's the default profile for creation, disable the delete button.
-        // Only enable the save button if something has changed..
+        // Closure for creating a button to only need to specify options once.
+        let button = |state, label| Button::new(state, Text::new(label).size(16)).padding(8);
+        let mut save_button = button(&mut self.save_button, "Save");
+
+        if (self.name_input.len() != 0
+            && self.ftp_input.len() != 0
+            && self.name_input != profile.name
+            && self.ftp_input != profile.ftp.to_string())
+            || (self.name_input != profile.name
+                && self.name_input.len() != 0
+                && self.ftp_input == profile.ftp.to_string())
+            || (self.name_input == profile.name
+                && self.ftp_input != profile.ftp.to_string()
+                && self.ftp_input.len() != 0)
+        {
+            save_button = save_button.on_press(UserProfileMessage::SaveProfile(
+                self.name_input.clone(),
+                self.ftp_input.parse::<u16>().unwrap_or(0),
+            ))
+        }
+
+        let mut delete_button = button(&mut self.delete_button, "Delete");
+        if profile.name.len() != 0 {
+            delete_button = delete_button.on_press(UserProfileMessage::DeleteProfile);
+        }
+
         Container::new(
             Column::new()
                 .spacing(10)
@@ -184,19 +207,8 @@ impl UserProfileState {
                     Row::new()
                         .spacing(20)
                         .width(Length::Units(200))
-                        .push(
-                            Button::new(&mut self.save_button, Text::new("Save").size(16))
-                                .on_press(UserProfileMessage::SaveProfile(
-                                    self.name_input.clone(),
-                                    self.ftp_input.parse::<u16>().unwrap_or(0),
-                                ))
-                                .padding(8),
-                        )
-                        .push(
-                            Button::new(&mut self.delete_button, Text::new("Delete").size(16))
-                                .padding(8)
-                                .on_press(UserProfileMessage::DeleteProfile),
-                        ),
+                        .push(save_button)
+                        .push(delete_button),
                 ),
         )
         .width(Length::Fill)
