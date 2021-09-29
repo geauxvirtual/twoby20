@@ -137,10 +137,10 @@ impl<'de> serde::Deserialize<'de> for Segment {
         }
 
         let seg = SegType::deserialize(deserializer)?;
-        match seg {
+        let (duration, power_start, power_end) = match seg {
             SegType::A(value) => {
                 // Let's split our string and remove whitespaces.
-                let value_vec: Vec<_> = value
+                let value_vec: Vec<&str> = value
                     .split("@")
                     .collect::<Vec<&str>>()
                     .iter()
@@ -148,30 +148,28 @@ impl<'de> serde::Deserialize<'de> for Segment {
                     .collect();
                 // if value_vec.len() != 2 { return error }
                 // TODO: May need to look into support a partial segment
-                let duration_str = value_vec[0];
-                let seconds = string_to_seconds(&duration_str)
-                    .map_err(|(uexp, exp)| Error::invalid_value(uexp, &exp))?;
-                let power_target_str = value_vec[1];
-                let power_target = PowerTarget::from_str(&power_target_str)
-                    .map_err(|e| Error::invalid_value(Unexpected::Str(&power_target_str), &e))?;
-                Ok(Segment {
-                    duration: seconds,
-                    power_start: power_target.clone(),
-                    power_end: power_target,
-                    start_time: 0,
-                })
+                let power_target = PowerTarget::from_str(value_vec[1])
+                    .map_err(|e| Error::invalid_value(Unexpected::Str(value_vec[1]), &e))?;
+                (
+                    String::from(value_vec[0]),
+                    power_target.clone(),
+                    power_target,
+                )
             }
             SegType::B {
                 duration,
                 power_start,
                 power_end,
-            } => Ok(Segment {
-                duration: 0,
-                power_start,
-                power_end,
-                start_time: 0,
-            }),
-        }
+            } => (duration, power_start, power_end),
+        };
+        let seconds =
+            string_to_seconds(&duration).map_err(|(uexp, exp)| Error::invalid_value(uexp, &exp))?;
+        Ok(Segment {
+            duration: seconds,
+            power_start,
+            power_end,
+            start_time: 0,
+        })
     }
 }
 
@@ -225,6 +223,8 @@ mod test {
           '2m30s @ .85',
           '3m4s @ 150',
           " 1h6m30s@ 150 ",
+          { duration = '3m50s', power_start = 200, power_end = 250 },
+          { duration = '30s', power_start = 0.55, power_end = 0.85 },
         ]"#;
 
         #[derive(Deserialize)]
@@ -234,11 +234,13 @@ mod test {
 
         let foo: Foo = toml::from_str(seg_str).unwrap();
 
-        assert_eq!(foo.segments.len(), 5);
+        assert_eq!(foo.segments.len(), 7);
         assert_eq!(foo.segments[0].duration, 120);
         assert_eq!(foo.segments[0].power_start, PowerTarget::Percentage(0.85));
         assert_eq!(foo.segments[3].power_end, PowerTarget::Watts(150));
         assert_eq!(foo.segments[4].duration, 1 * 3600 + 6 * 60 + 30);
+        assert_eq!(foo.segments[5].power_start, PowerTarget::Watts(200));
+        assert_eq!(foo.segments[6].power_end, PowerTarget::Percentage(0.85));
     }
 }
 
