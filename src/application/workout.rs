@@ -98,6 +98,18 @@ enum PowerTarget {
     Percentage(f32),
 }
 
+impl PowerTarget {
+    fn from_str(power_target_str: &str) -> Result<PowerTarget, &str> {
+        match power_target_str.parse::<u16>() {
+            Ok(v) => Ok(PowerTarget::Watts(v)),
+            Err(_) => match power_target_str.parse::<f32>() {
+                Ok(v) => Ok(PowerTarget::Percentage(v)),
+                Err(_) => return Err("integer greater than 0 (i.e. 200) for Watts or floating point number (.85) for Percentage"),
+            },
+        }
+    }
+}
+
 struct Segment {
     duration: u32,
     power_start: PowerTarget,
@@ -136,29 +148,11 @@ impl<'de> serde::Deserialize<'de> for Segment {
                 // if value_vec.len() != 2 { return error }
                 // TODO: May need to look into support a partial segment
                 let duration_str = value_vec[0];
-                let mut sdi = 0;
-                let mut dur_secs = 0;
-                for (i, c) in duration_str.chars().enumerate() {
-                    if c.is_digit(10) {
-                        continue;
-                    };
-                    let multiplier = match c {
-                        'h' => 3600,
-                        'm' => 60,
-                        's' => 1,
-                        _ => panic!("invalid character"),
-                    };
-                    dur_secs += duration_str[sdi..i].parse::<u32>().unwrap() * multiplier;
-                    sdi = i + 1;
-                }
+                let dur_secs = to_secs(&duration_str)
+                    .map_err(|(uexp, exp)| Error::invalid_value(uexp, &exp))?;
                 let power_target_str = value_vec[1];
-                let power_target = match power_target_str.parse::<u16>() {
-                    Ok(v) => PowerTarget::Watts(v),
-                    Err(_) => match power_target_str.parse::<f32>() {
-                        Ok(v) => PowerTarget::Percentage(v),
-                        Err(_) => panic!("Invalid value"), //return error here
-                    },
-                };
+                let power_target = PowerTarget::from_str(&power_target_str)
+                    .map_err(|e| Error::invalid_value(Unexpected::Str(&power_target_str), &e))?;
                 Ok(Segment {
                     duration: dur_secs,
                     power_start: power_target.clone(),
@@ -180,6 +174,32 @@ impl<'de> serde::Deserialize<'de> for Segment {
     }
 }
 
+use serde::de::Unexpected;
+
+fn to_secs(duration_str: &str) -> Result<u32, (Unexpected, &str)> {
+    let mut sdi = 0;
+    let mut dur_secs = 0;
+    for (i, c) in duration_str.chars().enumerate() {
+        if c.is_digit(10) {
+            continue;
+        };
+        let multiplier = match c {
+            'h' => 3600,
+            'm' => 60,
+            's' => 1,
+            _ => return Err((Unexpected::Char(c), "h, m, or s")),
+        };
+        dur_secs += duration_str[sdi..i].parse::<u32>().map_err(|_| {
+            (
+                Unexpected::Str(&duration_str[sdi..i]),
+                "Not a valid integer greater than 0",
+            )
+        })? * multiplier;
+        sdi = i + 1;
+    }
+    Ok(dur_secs)
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -193,7 +213,7 @@ mod test {
           '2m@.85',
           '3m@150',
           '2m30s @ .85',
-          '3m45s @ 150',
+          '3m4s @ 150',
           " 1h6m30s@ 150 ",
         ]"#;
 
