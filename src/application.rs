@@ -18,6 +18,7 @@ use log::{debug, error, info};
 
 mod menubar;
 mod user_profile;
+mod workout;
 use menubar::MenuBar;
 use user_profile::{UserProfile, UserProfileMessage, UserProfileState};
 
