@@ -89,6 +89,7 @@
 // is to support referencing intervals by name which would be imported and validated
 // prior to importing workouts.
 //
+use serde::de::Unexpected;
 use serde_derive::Deserialize;
 
 #[derive(Deserialize, Clone, Debug, PartialEq)]
@@ -148,13 +149,13 @@ impl<'de> serde::Deserialize<'de> for Segment {
                 // if value_vec.len() != 2 { return error }
                 // TODO: May need to look into support a partial segment
                 let duration_str = value_vec[0];
-                let dur_secs = to_secs(&duration_str)
+                let seconds = string_to_seconds(&duration_str)
                     .map_err(|(uexp, exp)| Error::invalid_value(uexp, &exp))?;
                 let power_target_str = value_vec[1];
                 let power_target = PowerTarget::from_str(&power_target_str)
                     .map_err(|e| Error::invalid_value(Unexpected::Str(&power_target_str), &e))?;
                 Ok(Segment {
-                    duration: dur_secs,
+                    duration: seconds,
                     power_start: power_target.clone(),
                     power_end: power_target,
                     start_time: 0,
@@ -174,12 +175,21 @@ impl<'de> serde::Deserialize<'de> for Segment {
     }
 }
 
-use serde::de::Unexpected;
-
-fn to_secs(duration_str: &str) -> Result<u32, (Unexpected, &str)> {
+// A method that takes a string in the format the following formats:
+// 1h
+// 1m
+// 1s
+// 1h10m
+// 10m30s
+// 1h10m30s
+// and outputs the number of seconds as u32. This returns a Result with
+// either the u32 equaling the number of seconds descibed by the string
+// or a serde::de::Unexpected enum with the corresponding error message
+// for serde's unexpected/expected Error return.
+fn string_to_seconds(duration: &str) -> Result<u32, (Unexpected, &str)> {
     let mut sdi = 0;
-    let mut dur_secs = 0;
-    for (i, c) in duration_str.chars().enumerate() {
+    let mut seconds = 0;
+    for (i, c) in duration.chars().enumerate() {
         if c.is_digit(10) {
             continue;
         };
@@ -189,15 +199,15 @@ fn to_secs(duration_str: &str) -> Result<u32, (Unexpected, &str)> {
             's' => 1,
             _ => return Err((Unexpected::Char(c), "h, m, or s")),
         };
-        dur_secs += duration_str[sdi..i].parse::<u32>().map_err(|_| {
+        seconds += duration[sdi..i].parse::<u32>().map_err(|_| {
             (
-                Unexpected::Str(&duration_str[sdi..i]),
+                Unexpected::Str(&duration[sdi..i]),
                 "Not a valid integer greater than 0",
             )
         })? * multiplier;
         sdi = i + 1;
     }
-    Ok(dur_secs)
+    Ok(seconds)
 }
 
 #[cfg(test)]
