@@ -120,13 +120,13 @@ impl FromStr for PowerTarget {
 
 impl From<u16> for PowerTarget {
     fn from(value: u16) -> Self {
-        PowerTarget::Watts(value)
+        Self::Watts(value)
     }
 }
 
 impl From<f32> for PowerTarget {
     fn from(value: f32) -> Self {
-        PowerTarget::Percentage(value)
+        Self::Percentage(value)
     }
 }
 
@@ -135,7 +135,7 @@ struct Duration(u32);
 
 impl Duration {
     fn new(value: u32) -> Self {
-        Duration(value)
+        Self(value)
     }
 }
 
@@ -147,19 +147,19 @@ impl From<u32> for Duration {
 
 use std::ops::Add;
 impl Add<u32> for Duration {
-    type Output = Duration;
+    type Output = Self;
 
-    fn add(self, rhs: u32) -> Duration {
-        Duration::new(self.0 + rhs)
+    fn add(self, rhs: u32) -> Self {
+        Self::new(self.0 + rhs)
     }
 }
 
 use std::ops::Mul;
 impl Mul<u32> for Duration {
-    type Output = Duration;
+    type Output = Self;
 
-    fn mul(self, rhs: u32) -> Duration {
-        Duration::new(self.0 * rhs)
+    fn mul(self, rhs: u32) -> Self {
+        Self::new(self.0 * rhs)
     }
 }
 
@@ -185,9 +185,9 @@ impl FromStr for Duration {
     // either the u32 equaling the number of seconds descibed by the string
     // or a serde::de::Unexpected enum with the corresponding error message
     // for serde's unexpected/expected Error return.
-    fn from_str(s: &str) -> Result<Duration, Self::Err> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut sdi = 0;
-        let mut duration = Duration::new(0);
+        let mut duration: Duration = 0.into();
         for (i, c) in s.chars().enumerate() {
             if c.is_digit(10) {
                 continue;
