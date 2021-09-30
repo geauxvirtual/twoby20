@@ -100,8 +100,9 @@ enum PowerTarget {
     Percentage(f32),
 }
 
-impl PowerTarget {
-    fn from_str(power_target_str: &str) -> Result<PowerTarget, &str> {
+impl FromStr for PowerTarget {
+    type Err = &'static str;
+    fn from_str(power_target_str: &str) -> Result<PowerTarget, Self::Err> {
         match power_target_str.parse::<u16>() {
             Ok(v) => Ok(PowerTarget::Watts(v)),
             Err(_) => match power_target_str.parse::<f32>() {
@@ -221,7 +222,8 @@ impl<'de> serde::Deserialize<'de> for Segment {
                     .collect();
                 // if value_vec.len() != 2 { return error }
                 // TODO: May need to look into support a partial segment
-                let power_target = PowerTarget::from_str(value_vec[1])
+                let power_target: PowerTarget = value_vec[1]
+                    .parse()
                     .map_err(|e| Error::invalid_value(Unexpected::Str(value_vec[1]), &e))?;
                 (
                     String::from(value_vec[0]),
@@ -331,6 +333,18 @@ mod test {
     fn test_duration_time_character_error() {
         let input = "2h46m30d";
         assert!(input.parse::<Duration>().is_err());
+    }
+
+    #[test]
+    fn test_powertarget_watts() {
+        let pt: PowerTarget = "200".parse().unwrap();
+        assert_eq!(pt, PowerTarget::Watts(200));
+    }
+
+    #[test]
+    fn test_powertarget_percentage() {
+        let pt: PowerTarget = "1.2".parse().unwrap();
+        assert_eq!(pt, PowerTarget::Percentage(1.2));
     }
 }
 
