@@ -106,7 +106,12 @@ impl FromStr for PowerTarget {
         match power_target_str.parse::<u16>() {
             Ok(v) => Ok(PowerTarget::Watts(v)),
             Err(_) => match power_target_str.parse::<f32>() {
-                Ok(v) => Ok(PowerTarget::Percentage(v)),
+                Ok(v) => {
+                    if v.is_sign_negative() {
+                        return Err("positive number integer for Watts or floating point number for Percentage")
+                    }
+                    Ok(PowerTarget::Percentage(v))
+                }
                 Err(_) => return Err("integer greater than 0 (i.e. 200) for Watts or floating point number (0.85) for Percentage"),
             },
         }
@@ -337,6 +342,11 @@ mod test {
     fn test_powertarget_percentage() {
         let pt: PowerTarget = "1.2".parse().unwrap();
         assert_eq!(pt, PowerTarget::Percentage(1.2));
+    }
+
+    #[test]
+    fn test_powertarget_negative() {
+        assert!("-200".parse::<PowerTarget>().is_err());
     }
 }
 
