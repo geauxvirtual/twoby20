@@ -284,6 +284,54 @@ mod test {
         assert_eq!(foo.segments[5].power_start, PowerTarget::Watts(200));
         assert_eq!(foo.segments[6].power_end, PowerTarget::Percentage(0.85));
     }
+
+    #[test]
+    fn test_duration_seconds() {
+        let input = "30s";
+        let d: Duration = input.parse().unwrap();
+        assert_eq!(d, Duration::new(30));
+    }
+    #[test]
+    fn test_duration_minutes() {
+        let input = "30m";
+        let d: Duration = input.parse().unwrap();
+        assert_eq!(d, Duration::new(30 * 60));
+    }
+    #[test]
+    fn test_duration_hours() {
+        let input = "1h";
+        let d: Duration = input.parse().unwrap();
+        assert_eq!(d, Duration::new(1 * 3600));
+    }
+    #[test]
+    fn test_duration_minutes_seconds() {
+        let input = "1m30s";
+        let d: Duration = input.parse().unwrap();
+        assert_eq!(d, Duration::new(1 * 60 + 30));
+    }
+    #[test]
+    fn test_duration_hours_minutes() {
+        let input = "1h30m";
+        let d: Duration = input.parse().unwrap();
+        assert_eq!(d, Duration::new(1 * 3600 + 30 * 60));
+    }
+    #[test]
+    fn test_duration_hours_seconds() {
+        let input = "2h30s";
+        let d: Duration = input.parse().unwrap();
+        assert_eq!(d, Duration::new(2 * 3600 + 30));
+    }
+    #[test]
+    fn test_duration_hours_minutes_seconds() {
+        let input = "2h46m30s";
+        let d: Duration = input.parse().unwrap();
+        assert_eq!(d, Duration::new(2 * 3600 + 46 * 60 + 30));
+    }
+    #[test]
+    fn test_duration_time_character_error() {
+        let input = "2h46m30d";
+        assert!(input.parse::<Duration>().is_err());
+    }
 }
 
 //struct SegmentTemplate {
