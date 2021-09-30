@@ -104,17 +104,29 @@ impl FromStr for PowerTarget {
     type Err = &'static str;
     fn from_str(power_target_str: &str) -> Result<PowerTarget, Self::Err> {
         match power_target_str.parse::<u16>() {
-            Ok(v) => Ok(PowerTarget::Watts(v)),
+            Ok(v) => Ok(v.into()),
             Err(_) => match power_target_str.parse::<f32>() {
                 Ok(v) => {
                     if v.is_sign_negative() {
                         return Err("positive number integer for Watts or floating point number for Percentage")
                     }
-                    Ok(PowerTarget::Percentage(v))
+                    Ok(v.into())
                 }
                 Err(_) => return Err("integer greater than 0 (i.e. 200) for Watts or floating point number (0.85) for Percentage"),
             },
         }
+    }
+}
+
+impl From<u16> for PowerTarget {
+    fn from(value: u16) -> Self {
+        PowerTarget::Watts(value)
+    }
+}
+
+impl From<f32> for PowerTarget {
+    fn from(value: f32) -> Self {
+        PowerTarget::Percentage(value)
     }
 }
 
