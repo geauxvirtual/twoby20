@@ -289,50 +289,42 @@ mod test {
 
     #[test]
     fn test_duration_seconds() {
-        let input = "30s";
-        let d: Duration = input.parse().unwrap();
+        let d: Duration = "30s".parse().unwrap();
         assert_eq!(d, Duration::new(30));
     }
     #[test]
     fn test_duration_minutes() {
-        let input = "30m";
-        let d: Duration = input.parse().unwrap();
+        let d: Duration = "30m".parse().unwrap();
         assert_eq!(d, Duration::new(30 * 60));
     }
     #[test]
     fn test_duration_hours() {
-        let input = "1h";
-        let d: Duration = input.parse().unwrap();
+        let d: Duration = "1h".parse().unwrap();
         assert_eq!(d, Duration::new(1 * 3600));
     }
     #[test]
     fn test_duration_minutes_seconds() {
-        let input = "1m30s";
-        let d: Duration = input.parse().unwrap();
+        let d: Duration = "1m30s".parse().unwrap();
         assert_eq!(d, Duration::new(1 * 60 + 30));
     }
     #[test]
     fn test_duration_hours_minutes() {
-        let input = "1h30m";
-        let d: Duration = input.parse().unwrap();
+        let d: Duration = "1h30m".parse().unwrap();
         assert_eq!(d, Duration::new(1 * 3600 + 30 * 60));
     }
     #[test]
     fn test_duration_hours_seconds() {
-        let input = "2h30s";
-        let d: Duration = input.parse().unwrap();
+        let d: Duration = "2h30s".parse().unwrap();
         assert_eq!(d, Duration::new(2 * 3600 + 30));
     }
     #[test]
     fn test_duration_hours_minutes_seconds() {
-        let input = "2h46m30s";
-        let d: Duration = input.parse().unwrap();
+        let d: Duration = "2h46m30s".parse().unwrap();
         assert_eq!(d, Duration::new(2 * 3600 + 46 * 60 + 30));
     }
     #[test]
     fn test_duration_time_character_error() {
-        let input = "2h46m30d";
-        assert!(input.parse::<Duration>().is_err());
+        assert!("2h46m30d".parse::<Duration>().is_err());
     }
 
     #[test]
