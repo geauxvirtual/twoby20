@@ -208,11 +208,35 @@ impl FromStr for Duration {
     }
 }
 
+#[derive(Debug, PartialEq)]
+struct StartTime(u32);
+
+impl From<u32> for StartTime {
+    fn from(value: u32) -> Self {
+        Self(value)
+    }
+}
+
+impl Add<Duration> for StartTime {
+    type Output = Self;
+
+    fn add(self, rhs: Duration) -> Self {
+        let v = self.0 + rhs.0;
+        v.into()
+    }
+}
+
+impl AddAssign<Duration> for StartTime {
+    fn add_assign(&mut self, rhs: Duration) {
+        self.0 = self.0 + rhs.0
+    }
+}
+
 struct Segment {
     duration: Duration,
     power_start: PowerTarget,
     power_end: PowerTarget,
-    start_time: u32, //Start time in seconds.
+    start_time: StartTime, //Start time in seconds.
 }
 
 impl<'de> serde::Deserialize<'de> for Segment {
@@ -267,7 +291,7 @@ impl<'de> serde::Deserialize<'de> for Segment {
             duration: seconds,
             power_start,
             power_end,
-            start_time: 0,
+            start_time: 0.into(),
         })
     }
 }
@@ -373,6 +397,41 @@ mod test {
         assert_eq!(d1, Duration(0));
         let d2: Duration = 0.into();
         assert_eq!(d2, Duration(0));
+    }
+
+    #[test]
+    fn test_add_duration() {
+        let d1: Duration = 5.into();
+        let d2: Duration = 10.into();
+        assert_eq!(d1 + d2, Duration(15));
+    }
+
+    #[test]
+    fn test_mul_duration() {
+        let d1: Duration = 5.into();
+        assert_eq!(d1 * 5, Duration(25));
+    }
+
+    #[test]
+    fn test_add_assign_duration() {
+        let mut d1: Duration = 10.into();
+        d1 += 30;
+        assert_eq!(d1, Duration(40));
+    }
+
+    #[test]
+    fn test_add_duration_to_starttime() {
+        let s1: StartTime = 0.into();
+        let d1: Duration = 10.into();
+        assert_eq!(s1 + d1, StartTime(10));
+    }
+
+    #[test]
+    fn test_add_assign_duration_to_starttime() {
+        let mut s1: StartTime = 0.into();
+        let d1: Duration = 10.into();
+        s1 += d1;
+        assert_eq!(s1, StartTime(10));
     }
 }
 
