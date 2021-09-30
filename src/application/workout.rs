@@ -127,6 +127,12 @@ impl Duration {
     }
 }
 
+impl From<u32> for Duration {
+    fn from(value: u32) -> Self {
+        Self(value)
+    }
+}
+
 use std::ops::Add;
 impl Add<u32> for Duration {
     type Output = Duration;
@@ -347,6 +353,14 @@ mod test {
     #[test]
     fn test_powertarget_negative() {
         assert!("-200".parse::<PowerTarget>().is_err());
+    }
+
+    #[test]
+    fn test_duration_from() {
+        let d1 = Duration::from(0);
+        assert_eq!(d1, Duration(0));
+        let d2: Duration = 0.into();
+        assert_eq!(d2, Duration(0));
     }
 }
 
