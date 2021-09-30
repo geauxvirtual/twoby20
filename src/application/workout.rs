@@ -89,6 +89,7 @@
 // is to support referencing intervals by name which would be imported and validated
 // prior to importing workouts.
 //
+use derive_more::Add;
 use serde::de::Unexpected;
 use serde_derive::Deserialize;
 
@@ -105,14 +106,86 @@ impl PowerTarget {
             Ok(v) => Ok(PowerTarget::Watts(v)),
             Err(_) => match power_target_str.parse::<f32>() {
                 Ok(v) => Ok(PowerTarget::Percentage(v)),
-                Err(_) => return Err("integer greater than 0 (i.e. 200) for Watts or floating point number (.85) for Percentage"),
+                Err(_) => return Err("integer greater than 0 (i.e. 200) for Watts or floating point number (0.85) for Percentage"),
             },
         }
     }
 }
 
+#[derive(Debug, Add, PartialEq)]
+struct Duration(u32);
+
+impl Duration {
+    fn new(value: u32) -> Self {
+        Duration(value)
+    }
+}
+
+use std::ops::Add;
+impl Add<u32> for Duration {
+    type Output = Duration;
+
+    fn add(self, rhs: u32) -> Duration {
+        Duration::new(self.0 + rhs)
+    }
+}
+
+use std::ops::Mul;
+impl Mul<u32> for Duration {
+    type Output = Duration;
+
+    fn mul(self, rhs: u32) -> Duration {
+        Duration::new(self.0 * rhs)
+    }
+}
+
+use std::ops::AddAssign;
+impl AddAssign<u32> for Duration {
+    fn add_assign(&mut self, rhs: u32) {
+        self.0 = self.0 + rhs
+    }
+}
+
+use std::str::FromStr;
+impl FromStr for Duration {
+    type Err = &'static str;
+
+    // A method that takes a string in the format the following formats:
+    // 1h
+    // 1m
+    // 1s
+    // 1h10m
+    // 10m30s
+    // 1h10m30s
+    // and outputs the number of seconds as u32. This returns a Result with
+    // either the u32 equaling the number of seconds descibed by the string
+    // or a serde::de::Unexpected enum with the corresponding error message
+    // for serde's unexpected/expected Error return.
+    fn from_str(s: &str) -> Result<Duration, Self::Err> {
+        let mut sdi = 0;
+        let mut duration = Duration::new(0);
+        for (i, c) in s.chars().enumerate() {
+            if c.is_digit(10) {
+                continue;
+            };
+            let multiplier = match c {
+                'h' => 3600,
+                'm' => 60,
+                's' => 1,
+                _ => return Err("required matching characters h, m, or s"),
+            };
+            duration += s[sdi..i]
+                .parse::<u32>()
+                .map_err(|_| "required valid u32 integer")?
+                * multiplier;
+            sdi = i + 1;
+        }
+        Ok(duration)
+    }
+}
+
 struct Segment {
-    duration: u32,
+    duration: Duration,
     power_start: PowerTarget,
     power_end: PowerTarget,
     start_time: u32, //Start time in seconds.
@@ -162,8 +235,9 @@ impl<'de> serde::Deserialize<'de> for Segment {
                 power_end,
             } => (duration, power_start, power_end),
         };
-        let seconds =
-            string_to_seconds(&duration).map_err(|(uexp, exp)| Error::invalid_value(uexp, &exp))?;
+        let seconds: Duration = duration
+            .parse()
+            .map_err(|e| Error::invalid_value(Unexpected::Str(&duration), &e))?;
         Ok(Segment {
             duration: seconds,
             power_start,
@@ -171,41 +245,6 @@ impl<'de> serde::Deserialize<'de> for Segment {
             start_time: 0,
         })
     }
-}
-
-// A method that takes a string in the format the following formats:
-// 1h
-// 1m
-// 1s
-// 1h10m
-// 10m30s
-// 1h10m30s
-// and outputs the number of seconds as u32. This returns a Result with
-// either the u32 equaling the number of seconds descibed by the string
-// or a serde::de::Unexpected enum with the corresponding error message
-// for serde's unexpected/expected Error return.
-fn string_to_seconds(duration: &str) -> Result<u32, (Unexpected, &str)> {
-    let mut sdi = 0;
-    let mut seconds = 0;
-    for (i, c) in duration.chars().enumerate() {
-        if c.is_digit(10) {
-            continue;
-        };
-        let multiplier = match c {
-            'h' => 3600,
-            'm' => 60,
-            's' => 1,
-            _ => return Err((Unexpected::Char(c), "h, m, or s")),
-        };
-        seconds += duration[sdi..i].parse::<u32>().map_err(|_| {
-            (
-                Unexpected::Str(&duration[sdi..i]),
-                "Not a valid integer greater than 0",
-            )
-        })? * multiplier;
-        sdi = i + 1;
-    }
-    Ok(seconds)
 }
 
 #[cfg(test)]
@@ -235,10 +274,13 @@ mod test {
         let foo: Foo = toml::from_str(seg_str).unwrap();
 
         assert_eq!(foo.segments.len(), 7);
-        assert_eq!(foo.segments[0].duration, 120);
+        assert_eq!(foo.segments[0].duration, Duration::new(120));
         assert_eq!(foo.segments[0].power_start, PowerTarget::Percentage(0.85));
         assert_eq!(foo.segments[3].power_end, PowerTarget::Watts(150));
-        assert_eq!(foo.segments[4].duration, 1 * 3600 + 6 * 60 + 30);
+        assert_eq!(
+            foo.segments[4].duration,
+            Duration::new(1 * 3600 + 6 * 60 + 30)
+        );
         assert_eq!(foo.segments[5].power_start, PowerTarget::Watts(200));
         assert_eq!(foo.segments[6].power_end, PowerTarget::Percentage(0.85));
     }
