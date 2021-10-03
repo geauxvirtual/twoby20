@@ -133,7 +133,8 @@ impl From<f32> for PowerTarget {
     }
 }
 
-#[derive(Debug, Add, PartialEq)]
+#[derive(Debug, Add, PartialEq, Deserialize)]
+#[serde(try_from = "String", into = "String")]
 struct Duration(u32);
 
 impl Duration {
@@ -204,6 +205,14 @@ impl FromStr for Duration {
             sdi = i + 1;
         }
         Ok(duration)
+    }
+}
+
+use std::convert::TryFrom;
+impl TryFrom<String> for Duration {
+    type Error = &'static str;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        value.parse()
     }
 }
 
@@ -295,9 +304,54 @@ impl<'de> serde::Deserialize<'de> for Segment {
     }
 }
 
+// Interval example
+// name = 'Warmup'
+// description ='Warmup to get the legs ready'
+// duration = '10m'
+// segments = [
+//   '5m@100', #5'@100
+//   '1m@110',
+//   '1m@120',
+//   '1m@130',
+//   '2m@100'
+// ]
+// lap_each_segment = false
+
+#[derive(Deserialize)]
+struct IntervalTemplate {
+    name: String,
+    description: String,
+    duration: Duration,
+    segments: Vec<Segment>,
+    lap_each_segment: bool,
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_interval_template() {
+        let it_str = r#"
+        name = "Warmup"
+        description = "Warming up the legs"
+        duration = "10m"
+        lap_each_segment = false
+        segments = [
+          '5m@100',
+          '1m@110',
+          '1m@120',
+          '1m@130',
+          '2m@100',
+        ]"#;
+
+        let foo: IntervalTemplate = toml::from_str(it_str).unwrap();
+        assert_eq!(foo.name, String::from("Warmup"));
+        assert_eq!(foo.description, String::from("Warming up the legs"));
+        assert_eq!(foo.duration, Duration::from_str("10m").unwrap());
+        assert_eq!(foo.lap_each_segment, false);
+        assert_eq!(foo.segments.len(), 5);
+    }
 
     #[test]
     fn test_segment() {
