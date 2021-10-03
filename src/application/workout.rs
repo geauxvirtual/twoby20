@@ -93,6 +93,9 @@ use derive_more::Add;
 use serde::de::Unexpected;
 use serde_derive::Deserialize;
 
+use std::ops::{Add, AddAssign, Mul};
+use std::str::FromStr;
+
 #[derive(Deserialize, Clone, Debug, PartialEq)]
 #[serde(untagged)]
 enum PowerTarget {
@@ -145,7 +148,6 @@ impl From<u32> for Duration {
     }
 }
 
-use std::ops::Add;
 impl Add<u32> for Duration {
     type Output = Self;
 
@@ -154,7 +156,6 @@ impl Add<u32> for Duration {
     }
 }
 
-use std::ops::Mul;
 impl Mul<u32> for Duration {
     type Output = Self;
 
@@ -163,14 +164,12 @@ impl Mul<u32> for Duration {
     }
 }
 
-use std::ops::AddAssign;
 impl AddAssign<u32> for Duration {
     fn add_assign(&mut self, rhs: u32) {
         self.0 = self.0 + rhs
     }
 }
 
-use std::str::FromStr;
 impl FromStr for Duration {
     type Err = &'static str;
 
