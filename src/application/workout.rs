@@ -137,12 +137,6 @@ impl From<f32> for PowerTarget {
 #[serde(try_from = "String", into = "String")]
 struct Duration(u32);
 
-//impl Duration {
-//    fn new(value: u32) -> Self {
-//        Self(value)
-//    }
-//}
-
 impl From<u32> for Duration {
     fn from(value: u32) -> Self {
         Self(value)
