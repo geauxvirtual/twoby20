@@ -137,11 +137,11 @@ impl From<f32> for PowerTarget {
 #[serde(try_from = "String", into = "String")]
 struct Duration(u32);
 
-impl Duration {
-    fn new(value: u32) -> Self {
-        Self(value)
-    }
-}
+//impl Duration {
+//    fn new(value: u32) -> Self {
+//        Self(value)
+//    }
+//}
 
 impl From<u32> for Duration {
     fn from(value: u32) -> Self {
@@ -153,7 +153,7 @@ impl Add<u32> for Duration {
     type Output = Self;
 
     fn add(self, rhs: u32) -> Self {
-        Self::new(self.0 + rhs)
+        Self(self.0 + rhs)
     }
 }
 
@@ -161,7 +161,7 @@ impl Mul<u32> for Duration {
     type Output = Self;
 
     fn mul(self, rhs: u32) -> Self {
-        Self::new(self.0 * rhs)
+        Self(self.0 * rhs)
     }
 }
 
@@ -187,7 +187,7 @@ impl FromStr for Duration {
     // for serde's unexpected/expected Error return.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut sdi = 0;
-        let mut duration: Duration = 0.into();
+        let mut duration = Duration(0);
         for (i, c) in s.chars().enumerate() {
             if c.is_digit(10) {
                 continue;
@@ -404,13 +404,10 @@ mod test {
         let foo: Foo = toml::from_str(seg_str).unwrap();
 
         assert_eq!(foo.segments.len(), 7);
-        assert_eq!(foo.segments[0].duration, Duration::new(120));
+        assert_eq!(foo.segments[0].duration, Duration(120));
         assert_eq!(foo.segments[0].power_start, PowerTarget::Percentage(0.85));
         assert_eq!(foo.segments[3].power_end, PowerTarget::Watts(150));
-        assert_eq!(
-            foo.segments[4].duration,
-            Duration::new(1 * 3600 + 6 * 60 + 30)
-        );
+        assert_eq!(foo.segments[4].duration, Duration(1 * 3600 + 6 * 60 + 30));
         assert_eq!(foo.segments[5].power_start, PowerTarget::Watts(200));
         assert_eq!(foo.segments[6].power_end, PowerTarget::Percentage(0.85));
     }
@@ -418,37 +415,37 @@ mod test {
     #[test]
     fn test_duration_seconds() {
         let d: Duration = "30s".parse().unwrap();
-        assert_eq!(d, Duration::new(30));
+        assert_eq!(d, Duration(30));
     }
     #[test]
     fn test_duration_minutes() {
         let d: Duration = "30m".parse().unwrap();
-        assert_eq!(d, Duration::new(30 * 60));
+        assert_eq!(d, Duration(30 * 60));
     }
     #[test]
     fn test_duration_hours() {
         let d: Duration = "1h".parse().unwrap();
-        assert_eq!(d, Duration::new(1 * 3600));
+        assert_eq!(d, Duration(1 * 3600));
     }
     #[test]
     fn test_duration_minutes_seconds() {
         let d: Duration = "1m30s".parse().unwrap();
-        assert_eq!(d, Duration::new(1 * 60 + 30));
+        assert_eq!(d, Duration(1 * 60 + 30));
     }
     #[test]
     fn test_duration_hours_minutes() {
         let d: Duration = "1h30m".parse().unwrap();
-        assert_eq!(d, Duration::new(1 * 3600 + 30 * 60));
+        assert_eq!(d, Duration(1 * 3600 + 30 * 60));
     }
     #[test]
     fn test_duration_hours_seconds() {
         let d: Duration = "2h30s".parse().unwrap();
-        assert_eq!(d, Duration::new(2 * 3600 + 30));
+        assert_eq!(d, Duration(2 * 3600 + 30));
     }
     #[test]
     fn test_duration_hours_minutes_seconds() {
         let d: Duration = "2h46m30s".parse().unwrap();
-        assert_eq!(d, Duration::new(2 * 3600 + 46 * 60 + 30));
+        assert_eq!(d, Duration(2 * 3600 + 46 * 60 + 30));
     }
     #[test]
     fn test_duration_time_character_error() {
