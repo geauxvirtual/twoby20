@@ -233,6 +233,9 @@ impl AddAssign<Duration> for StartTime {
     }
 }
 
+#[derive(Debug, Deserialize, PartialEq)]
+struct Quantity(u32);
+
 struct Segment {
     duration: Duration,
     power_start: PowerTarget,
@@ -313,6 +316,7 @@ struct IntervalTemplate {
     duration: Duration,
     segments: Vec<Segment>,
     lap_each_segment: bool,
+    repeat: Option<Quantity>,
 }
 
 //TODO implement proper errors
@@ -354,6 +358,29 @@ mod test {
         assert_eq!(foo.duration, Duration::from_str("10m").unwrap());
         assert_eq!(foo.lap_each_segment, false);
         assert_eq!(foo.segments.len(), 5);
+    }
+
+    #[test]
+    fn test_interval_template_with_repeat() {
+        let it_str = r#"
+        name = "30on/30off"
+        description = "30s on @ 1.2, 30s off @ .55"
+        duration = "1m"
+        lap_each_segment = true
+        segments = [
+          '30s@1.2',
+          '30m@.55',
+        ]
+        repeat = 10
+        "#;
+
+        let foo: IntervalTemplate = toml::from_str(it_str).unwrap();
+        assert_eq!(foo.name, String::from("30on/30off"));
+        assert_eq!(foo.description, String::from("30s on @ 1.2, 30s off @ .55"));
+        assert_eq!(foo.duration, Duration::from_str("1m").unwrap());
+        assert_eq!(foo.lap_each_segment, true);
+        assert_eq!(foo.segments.len(), 2);
+        assert_eq!(foo.repeat, Some(Quantity(10)));
     }
 
     #[test]
