@@ -223,8 +223,7 @@ impl Add<Duration> for StartTime {
     type Output = Self;
 
     fn add(self, rhs: Duration) -> Self {
-        let v = self.0 + rhs.0;
-        v.into()
+        Self(self.0 + rhs.0)
     }
 }
 
