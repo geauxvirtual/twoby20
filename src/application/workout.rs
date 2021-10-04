@@ -133,7 +133,7 @@ impl From<f32> for PowerTarget {
     }
 }
 
-#[derive(Debug, Add, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Add, PartialEq, Deserialize)]
 #[serde(try_from = "String", into = "String")]
 struct Duration(u32);
 
@@ -322,6 +322,20 @@ struct IntervalTemplate {
     lap_each_segment: bool,
 }
 
+//TODO implement proper errors
+impl IntervalTemplate {
+    fn validate(&self) -> Result<(), &'static str> {
+        let seg_duration = self
+            .segments
+            .iter()
+            .fold(Duration::from(0), |acc, x| acc + x.duration.clone());
+        if self.duration != seg_duration {
+            return Err("duration does not match duration calculated from segments");
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -349,6 +363,24 @@ mod test {
         assert_eq!(foo.segments.len(), 5);
     }
 
+    #[test]
+    fn test_interval_template_validate() {
+        let it_str = r#"
+        name = "Warmup"
+        description = "Warming up the legs"
+        duration = "10m"
+        lap_each_segment = false
+        segments = [
+          '5m@100',
+          '1m@110',
+          '1m@120',
+          '1m@130',
+          '2m@100',
+        ]"#;
+
+        let foo: IntervalTemplate = toml::from_str(it_str).unwrap();
+        assert!(foo.validate().is_ok());
+    }
     #[test]
     fn test_segment() {
         // Test our use cases for writing out a segment.
