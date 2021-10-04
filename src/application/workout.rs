@@ -259,7 +259,7 @@ impl<'de> serde::Deserialize<'de> for Segment {
         enum SegType {
             A(String),
             B {
-                duration: String,
+                duration: Duration,
                 power_start: PowerTarget,
                 power_end: PowerTarget,
             },
@@ -277,14 +277,13 @@ impl<'de> serde::Deserialize<'de> for Segment {
                     .collect();
                 // if value_vec.len() != 2 { return error }
                 // TODO: May need to look into support a partial segment
+                let duration: Duration = value_vec[0]
+                    .parse()
+                    .map_err(|e| Error::invalid_value(Unexpected::Str(value_vec[0]), &e))?;
                 let power_target: PowerTarget = value_vec[1]
                     .parse()
                     .map_err(|e| Error::invalid_value(Unexpected::Str(value_vec[1]), &e))?;
-                (
-                    String::from(value_vec[0]),
-                    power_target.clone(),
-                    power_target,
-                )
+                (duration, power_target.clone(), power_target)
             }
             SegType::B {
                 duration,
@@ -292,11 +291,8 @@ impl<'de> serde::Deserialize<'de> for Segment {
                 power_end,
             } => (duration, power_start, power_end),
         };
-        let seconds: Duration = duration
-            .parse()
-            .map_err(|e| Error::invalid_value(Unexpected::Str(&duration), &e))?;
         Ok(Segment {
-            duration: seconds,
+            duration,
             power_start,
             power_end,
             start_time: 0.into(),
