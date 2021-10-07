@@ -165,6 +165,12 @@ impl AddAssign<u32> for Duration {
     }
 }
 
+impl AddAssign<Duration> for Duration {
+    fn add_assign(&mut self, rhs: Duration) {
+        self.0 = self.0 + rhs.0
+    }
+}
+
 impl FromStr for Duration {
     type Err = &'static str;
 
@@ -210,7 +216,7 @@ impl TryFrom<String> for Duration {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 struct StartTime(u32);
 
 impl From<u32> for StartTime {
@@ -233,9 +239,10 @@ impl AddAssign<Duration> for StartTime {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 struct Quantity(u32);
 
+#[derive(Clone)]
 struct Segment {
     duration: Duration,
     power_start: PowerTarget,
@@ -309,7 +316,7 @@ impl<'de> serde::Deserialize<'de> for Segment {
 // ]
 // lap_each_segment = false
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 struct IntervalTemplate {
     name: String,
     description: String,
@@ -423,14 +430,70 @@ impl<'de> serde::Deserialize<'de> for IntervalTemplateType {
         }
     }
 }
-
 #[derive(Deserialize)]
 struct WorkoutTemplate {
     name: String,
     description: String,
     duration: Duration,
     lap_each_interval: bool,
+    intervals: Vec<IntervalTemplate>,
+}
+
+#[derive(Deserialize)]
+struct ShadowWorkoutTemplate {
+    name: String,
+    description: String,
+    duration: Duration,
+    lap_each_interval: bool,
     intervals: Vec<IntervalTemplateType>,
+}
+impl ShadowWorkoutTemplate {
+    fn validate(
+        &mut self,
+        interval_templates: &BTreeMap<String, IntervalTemplate>,
+    ) -> Result<(), &'static str> {
+        // IntervalTemplate gets validated for duration upon creation. This
+        // validates the WorkoutTemplate duration and transforms any
+        // IntervalTemplateType::Validate to IntervalTemplateType::IntervalTemplate or
+        // returns an error.
+        // Keep track of our durations
+        let mut duration = Duration(0);
+        for interval_type in self.intervals.iter_mut() {
+            match interval_type {
+                IntervalTemplateType::Validate(value) => {
+                    if let Some(template) = interval_templates.get(value) {
+                        duration += template.duration.clone();
+                        *interval_type = IntervalTemplateType::IntervalTemplate(template.clone())
+                    }
+                }
+                IntervalTemplateType::IntervalTemplate(template) => {
+                    duration += template.duration.clone()
+                }
+            }
+        }
+        if self.duration != duration {
+            return Err("defined duration does not match sum of interval durations");
+        }
+        Ok(())
+    }
+
+    fn build_workout(self) -> WorkoutTemplate {
+        let intervals: Vec<IntervalTemplate> = self
+            .intervals
+            .iter()
+            .map(|x| match x {
+                IntervalTemplateType::IntervalTemplate(template) => template.clone(),
+                _ => panic!("Invalid IntervalTemplateType when creating WorkoutTemplate"),
+            })
+            .collect();
+        WorkoutTemplate {
+            name: self.name,
+            description: self.description,
+            duration: self.duration,
+            lap_each_interval: self.lap_each_interval,
+            intervals: intervals,
+        }
+    }
 }
 
 //
@@ -452,7 +515,7 @@ struct Library {
 #[derive(Deserialize)]
 struct ShadowLibrary {
     intervals: Option<Vec<IntervalTemplate>>,
-    workouts: Option<Vec<WorkoutTemplate>>,
+    workouts: Option<Vec<ShadowWorkoutTemplate>>,
 }
 
 #[cfg(test)]
@@ -522,20 +585,33 @@ mod test {
                         // log error
                         continue;
                     }
-                    library.intervals.insert(interval.name.clone(), interval);
+                    match library.intervals.contains_key(&interval.name) {
+                        true => continue, //Also log error for duplicate key
+                        false => {
+                            library.intervals.insert(interval.name.clone(), interval);
+                        }
+                    }
                 }
             }
             if let Some(contents) = sl.workouts {
-                for workout in contents {
+                for mut shadow_workout in contents {
                     // Need a build and a validate method. Validate the duration
                     // and any interval templates passed in. Merge interval templates, etc.
-                    // if let Err(_e) = workout.validate(&sl.intervals)
+                    if let Err(_e) = shadow_workout.validate(&library.intervals) {
+                        // log error
+                        continue;
+                    }
+                    let workout = shadow_workout.build_workout();
                     library.workouts.insert(workout.name.clone(), workout);
                 }
             }
         }
         assert_eq!(library.intervals.len(), 3);
         assert_eq!(library.workouts.len(), 1);
+        let sample_workout = library.workouts.get("Metcalfe").unwrap();
+        assert_eq!(sample_workout.duration, Duration::from_str("1h").unwrap());
+        assert_eq!(sample_workout.intervals[0].segments.len(), 5);
+        assert_eq!(sample_workout.intervals[1].segments.len(), 3);
     }
 
     #[test]
