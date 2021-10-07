@@ -159,6 +159,13 @@ impl Mul<u32> for Duration {
     }
 }
 
+impl Mul<Quantity> for Duration {
+    type Output = Self;
+    fn mul(self, rhs: Quantity) -> Self {
+        Self(self.0 * rhs.0)
+    }
+}
+
 impl AddAssign<u32> for Duration {
     fn add_assign(&mut self, rhs: u32) {
         self.0 = self.0 + rhs
@@ -333,7 +340,7 @@ impl IntervalTemplate {
             .segments
             .iter()
             .fold(Duration::from(0), |acc, x| acc + x.duration.clone());
-        if self.duration != seg_duration {
+        if self.duration != seg_duration * self.repeat.clone().unwrap_or(Quantity(1)) {
             return Err("duration does not match duration calculated from segments");
         }
         Ok(())
@@ -375,7 +382,9 @@ impl IntervalTemplate {
 // '10m@.95' # A segment to be turned into an IntervalType
 // { name = '30on/30off', repeat = 30 } # a name interval with changed parameters
 enum IntervalTemplateType {
+    // A name of an Interval or a segment that can be parsed into a string.
     Validate(String),
+    // A valid IntervalTemplate
     IntervalTemplate(IntervalTemplate),
 }
 
@@ -389,7 +398,16 @@ impl<'de> serde::Deserialize<'de> for IntervalTemplateType {
         #[derive(Deserialize)]
         #[serde(untagged)]
         enum IntervalType {
-            A(String), // This could be 'Warmup' or '5m@.55'
+            // 'Warmup' or '5m@.55'
+            A(String),
+            // Range { duration = '1m', power_start: .75, power_end: .85 }
+            B {
+                duration: Duration,
+                power_start: PowerTarget,
+                power_end: PowerTarget,
+                repeat: Option<Quantity>,
+                lap_each_segment: Option<bool>,
+            },
         }
 
         match IntervalType::deserialize(deserializer)? {
@@ -426,6 +444,31 @@ impl<'de> serde::Deserialize<'de> for IntervalTemplateType {
                     repeat: None,
                 };
                 Ok(Self::IntervalTemplate(interval_template))
+            }
+            IntervalType::B {
+                duration,
+                power_start,
+                power_end,
+                repeat,
+                lap_each_segment,
+            } => {
+                let interval_duration = duration.clone() * repeat.clone().unwrap_or(Quantity(1));
+                let segment = Segment {
+                    duration: duration.clone(),
+                    power_start,
+                    power_end,
+                    start_time: 0.into(),
+                };
+                // Need to validate IntervalTemplates that are created from segments
+                // passed into the WorkoutTemplate
+                Ok(Self::IntervalTemplate(IntervalTemplate {
+                    name: String::from("this should be optional"),
+                    description: String::from("this should be optional"),
+                    duration: interval_duration,
+                    lap_each_segment: lap_each_segment.unwrap_or(false),
+                    segments: vec![segment],
+                    repeat: repeat,
+                }))
             }
         }
     }
@@ -567,7 +610,7 @@ mod test {
         intervals = [
           'Warmup',
           '2by20',
-          '5m@.55',
+          { duration = "5m", power_start = 0.85, power_end = 0.55 },
         ]"#;
 
         let mut library = Library {
@@ -612,6 +655,10 @@ mod test {
         assert_eq!(sample_workout.duration, Duration::from_str("1h").unwrap());
         assert_eq!(sample_workout.intervals[0].segments.len(), 5);
         assert_eq!(sample_workout.intervals[1].segments.len(), 3);
+        assert_eq!(
+            sample_workout.intervals[2].segments[0].power_start,
+            PowerTarget::Percentage(0.85)
+        );
     }
 
     #[test]
@@ -642,19 +689,20 @@ mod test {
         let it_str = r#"
         name = "30on/30off"
         description = "30s on @ 1.2, 30s off @ .55"
-        duration = "1m"
+        duration = "10m"
         lap_each_segment = true
         segments = [
           '30s@1.2',
-          '30m@.55',
+          '30s@.55',
         ]
         repeat = 10
         "#;
 
         let foo: IntervalTemplate = toml::from_str(it_str).unwrap();
+        assert!(foo.validate().is_ok());
         assert_eq!(foo.name, String::from("30on/30off"));
         assert_eq!(foo.description, String::from("30s on @ 1.2, 30s off @ .55"));
-        assert_eq!(foo.duration, Duration::from_str("1m").unwrap());
+        assert_eq!(foo.duration, Duration::from_str("10m").unwrap());
         assert_eq!(foo.lap_each_segment, true);
         assert_eq!(foo.segments.len(), 2);
         assert_eq!(foo.repeat, Some(Quantity(10)));
