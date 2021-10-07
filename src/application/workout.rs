@@ -333,9 +333,115 @@ impl IntervalTemplate {
     }
 }
 
+// // workout example
+// [[ workout ]]
+// name = 'Metcalfe'
+// description = "A 2x20 workout best done to 80s hair bands"
+// duration = "1h" # 1h30m
+// intervals = [
+//   'Warmup',
+//   '20m@.85', # '20m @ .85'
+//   '5m@.55',
+//   '20m@.85',
+//   '5m@.55'
+//  ]
+//  lap_each_interval = true
+//
+// // workout example
+// [[ workout ]]
+// name = "30x30s"
+// description = "A 2x20 workout best done to 80s hair bands"
+// duration = "1h" # 1h30m
+// intervals = [
+//   'Warmup',
+//   { name = "30on/30off', repeat = 30 },
+//   '5m@.55'
+// ]
+//  lap_each_interval = true
+//
+//
+//
+// There should be an intermediate structure for reading in workouts (especially)
+// so that workouts can be validated against known intervals if an interval
+// is specified in a workout. Workouts and templates should be stored in Hash
+// or BtreeMap for easy searching of intervals especially.
+//
+// Intervals and workouts can be listed in the same file or in separate files.
+// Read in all intervals and validate the intervals.
+// Read in all workouts, validate workouts against known intervals, and build
+// a workout by expanding out
+use std::collections::BTreeMap;
+struct Library {
+    intervals: BTreeMap<String, IntervalTemplate>,
+    //workouts: Vec<WorkoutTemplate>,
+}
+
+#[derive(Deserialize)]
+struct ShadowLibrary {
+    intervals: Option<Vec<IntervalTemplate>>,
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_library() {
+        // Sample intervals like they would be read from multiple files.
+        let s1 = r#"
+        [[ intervals ]]
+        name = "Warmup"
+        description = "This needs to be optional"
+        duration = "10m"
+        lap_each_segment = false
+        segments = [
+          '5m@100',
+          '1m@110',
+          '1m@120',
+          '1m@130',
+          '2m@100',
+        ]
+
+        [[ intervals ]]
+        name = "Cooldown"
+        description = "This needs to be optional"
+        duration = "5m"
+        lap_each_segment = false
+        segments = ['5m@.55']
+        "#;
+
+        let s2 = r#"
+        [[ intervals ]]
+        name = "2by20"
+        description = "This needs to be optional"
+        duration = "45m"
+        lap_each_segment = true
+        segments = [
+          '20m@.85',
+          '5m@.55',
+          '20m@.85'
+        ]"#;
+
+        let mut library = Library {
+            intervals: BTreeMap::new(),
+        };
+        for file in vec![s1, s2].iter() {
+            // This is a simplied version of reading in file contents then
+            // parsing the contents into our data structure.
+            let sl: ShadowLibrary = toml::from_str(file).unwrap();
+            // Loop through read in intervals
+            if let Some(contents) = sl.intervals {
+                for interval in contents {
+                    if let Err(_e) = interval.validate() {
+                        // log error
+                        continue;
+                    }
+                    library.intervals.insert(interval.name.clone(), interval);
+                }
+            }
+        }
+        assert_eq!(library.intervals.len(), 3);
+    }
 
     #[test]
     fn test_interval_template() {

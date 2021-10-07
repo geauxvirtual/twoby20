@@ -99,6 +99,10 @@ enum ScreenState {
 // This profile is never removed. It's there so there is a "New..." or "Create.."
 // field in the pick list (if pick list is maintained). First user profile will
 // always be 1.
+// (10/6) Workouts should be changed to Library which is a collection of intervals
+// that can be used to create workouts and a collection of available workouts.
+// (Future) Possibly add a way to select intervals in the UI and create a workout from
+// the selection.
 struct Application {
     state: AppState,
     screen_state: ScreenState,
