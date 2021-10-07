@@ -359,7 +359,80 @@ impl IntervalTemplate {
 // ]
 //  lap_each_interval = true
 //
+// Use IntervalTemplateType during import to find what intervals to validate
+// before pushing our WorkoutTemplate into the library. Any intervals that
+// need to be validated will be from our map of intervals already created.
 //
+// This could look like:
+// 'Warmup" # Just a string
+// '10m@.95' # A segment to be turned into an IntervalType
+// { name = '30on/30off', repeat = 30 } # a name interval with changed parameters
+enum IntervalTemplateType {
+    Validate(String),
+    IntervalTemplate(IntervalTemplate),
+}
+
+impl<'de> serde::Deserialize<'de> for IntervalTemplateType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum IntervalType {
+            A(String), // This could be 'Warmup' or '5m@.55'
+        }
+
+        match IntervalType::deserialize(deserializer)? {
+            IntervalType::A(value) => {
+                let v: Vec<&str> = value
+                    .split("@")
+                    .collect::<Vec<&str>>()
+                    .iter()
+                    .map(|x| x.trim())
+                    .collect();
+                // If len == 1, then set to Validate
+                if v.len() == 1 {
+                    return Ok(Self::Validate(String::from(v[0])));
+                }
+                // Parse our segment and crate an interval type
+                let duration: Duration = v[0]
+                    .parse()
+                    .map_err(|e| Error::invalid_value(Unexpected::Str(v[0]), &e))?;
+                let power_target: PowerTarget = v[1]
+                    .parse()
+                    .map_err(|e| Error::invalid_value(Unexpected::Str(v[1]), &e))?;
+                let segment = Segment {
+                    duration: duration.clone(),
+                    power_start: power_target.clone(),
+                    power_end: power_target,
+                    start_time: 0.into(),
+                };
+                let interval_template = IntervalTemplate {
+                    name: String::from("this should be optional"),
+                    description: String::from("this should be optional"),
+                    duration: duration,
+                    lap_each_segment: false,
+                    segments: vec![segment],
+                    repeat: None,
+                };
+                Ok(Self::IntervalTemplate(interval_template))
+            }
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct WorkoutTemplate {
+    name: String,
+    description: String,
+    duration: Duration,
+    lap_each_interval: bool,
+    intervals: Vec<IntervalTemplateType>,
+}
+
 //
 // There should be an intermediate structure for reading in workouts (especially)
 // so that workouts can be validated against known intervals if an interval
@@ -373,12 +446,13 @@ impl IntervalTemplate {
 use std::collections::BTreeMap;
 struct Library {
     intervals: BTreeMap<String, IntervalTemplate>,
-    //workouts: Vec<WorkoutTemplate>,
+    workouts: BTreeMap<String, WorkoutTemplate>,
 }
 
 #[derive(Deserialize)]
 struct ShadowLibrary {
     intervals: Option<Vec<IntervalTemplate>>,
+    workouts: Option<Vec<WorkoutTemplate>>,
 }
 
 #[cfg(test)]
@@ -420,10 +494,22 @@ mod test {
           '20m@.85',
           '5m@.55',
           '20m@.85'
+        ]
+
+        [[ workouts ]]
+        name = "Metcalfe"
+        description = "2x20 at tempo"
+        duration = "1h"
+        lap_each_interval = true
+        intervals = [
+          'Warmup',
+          '2by20',
+          '5m@.55',
         ]"#;
 
         let mut library = Library {
             intervals: BTreeMap::new(),
+            workouts: BTreeMap::new(),
         };
         for file in vec![s1, s2].iter() {
             // This is a simplied version of reading in file contents then
@@ -439,8 +525,17 @@ mod test {
                     library.intervals.insert(interval.name.clone(), interval);
                 }
             }
+            if let Some(contents) = sl.workouts {
+                for workout in contents {
+                    // Need a build and a validate method. Validate the duration
+                    // and any interval templates passed in. Merge interval templates, etc.
+                    // if let Err(_e) = workout.validate(&sl.intervals)
+                    library.workouts.insert(workout.name.clone(), workout);
+                }
+            }
         }
         assert_eq!(library.intervals.len(), 3);
+        assert_eq!(library.workouts.len(), 1);
     }
 
     #[test]
