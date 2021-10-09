@@ -89,6 +89,8 @@
 // is to support referencing intervals by name which would be imported and validated
 // prior to importing workouts.
 //
+#![allow(dead_code)]
+
 use derive_more::Add;
 use serde::de::Unexpected;
 use serde_derive::Deserialize;
@@ -96,7 +98,7 @@ use serde_derive::Deserialize;
 use std::ops::{Add, AddAssign, Mul};
 use std::str::FromStr;
 
-#[derive(Deserialize, Clone, Debug, PartialEq)]
+#[derive(Copy, Deserialize, Clone, Debug, PartialEq)]
 #[serde(untagged)]
 enum PowerTarget {
     Watts(u16),
@@ -133,7 +135,7 @@ impl From<f32> for PowerTarget {
     }
 }
 
-#[derive(Clone, Debug, Add, PartialEq, Deserialize)]
+#[derive(Copy, Clone, Debug, Add, PartialEq, Deserialize)]
 #[serde(try_from = "String", into = "String")]
 struct Duration(u32);
 
@@ -223,7 +225,7 @@ impl TryFrom<String> for Duration {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 struct StartTime(u32);
 
 impl From<u32> for StartTime {
@@ -246,7 +248,7 @@ impl AddAssign<Duration> for StartTime {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Copy, Clone, Debug, Deserialize, PartialEq)]
 struct Quantity(u32);
 
 #[derive(Clone)]
@@ -430,15 +432,15 @@ impl<'de> serde::Deserialize<'de> for IntervalTemplateType {
                     .parse()
                     .map_err(|e| Error::invalid_value(Unexpected::Str(v[1]), &e))?;
                 let segment = Segment {
-                    duration: duration.clone(),
-                    power_start: power_target.clone(),
+                    duration,
+                    power_start: power_target,
                     power_end: power_target,
                     start_time: 0.into(),
                 };
                 let interval_template = IntervalTemplate {
                     name: String::from("this should be optional"),
                     description: String::from("this should be optional"),
-                    duration: duration,
+                    duration,
                     lap_each_segment: false,
                     segments: vec![segment],
                     repeat: None,
@@ -467,7 +469,7 @@ impl<'de> serde::Deserialize<'de> for IntervalTemplateType {
                     duration: interval_duration,
                     lap_each_segment: lap_each_segment.unwrap_or(false),
                     segments: vec![segment],
-                    repeat: repeat,
+                    repeat,
                 }))
             }
         }
@@ -534,7 +536,7 @@ impl ShadowWorkoutTemplate {
             description: self.description,
             duration: self.duration,
             lap_each_interval: self.lap_each_interval,
-            intervals: intervals,
+            intervals,
         }
     }
 }
