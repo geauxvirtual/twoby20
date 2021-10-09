@@ -341,8 +341,8 @@ impl IntervalTemplate {
         let seg_duration = self
             .segments
             .iter()
-            .fold(Duration::from(0), |acc, x| acc + x.duration.clone());
-        if self.duration != seg_duration * self.repeat.clone().unwrap_or(Quantity(1)) {
+            .fold(Duration::from(0), |acc, x| acc + x.duration);
+        if self.duration != seg_duration * self.repeat.unwrap_or(Quantity(1)) {
             return Err("duration does not match duration calculated from segments");
         }
         Ok(())
@@ -454,9 +454,9 @@ impl<'de> serde::Deserialize<'de> for IntervalTemplateType {
                 repeat,
                 lap_each_segment,
             } => {
-                let interval_duration = duration.clone() * repeat.clone().unwrap_or(Quantity(1));
+                let interval_duration = duration * repeat.unwrap_or(Quantity(1));
                 let segment = Segment {
-                    duration: duration.clone(),
+                    duration,
                     power_start,
                     power_end,
                     start_time: 0.into(),
@@ -507,13 +507,11 @@ impl ShadowWorkoutTemplate {
             match interval_type {
                 IntervalTemplateType::Validate(value) => {
                     if let Some(template) = interval_templates.get(value) {
-                        duration += template.duration.clone();
+                        duration += template.duration;
                         *interval_type = IntervalTemplateType::IntervalTemplate(template.clone())
                     }
                 }
-                IntervalTemplateType::IntervalTemplate(template) => {
-                    duration += template.duration.clone()
-                }
+                IntervalTemplateType::IntervalTemplate(template) => duration += template.duration,
             }
         }
         if self.duration != duration {
