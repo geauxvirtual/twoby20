@@ -117,7 +117,7 @@ impl FromStr for PowerTarget {
                     }
                     Ok(v.into())
                 }
-                Err(_) => return Err("integer greater than 0 (i.e. 200) for Watts or floating point number (0.85) for Percentage"),
+                Err(_) => Err("integer greater than 0 (i.e. 200) for Watts or floating point number (0.85) for Percentage"),
             },
         }
     }
@@ -282,7 +282,7 @@ impl<'de> serde::Deserialize<'de> for Segment {
             SegType::A(value) => {
                 // Let's split our string and remove whitespaces.
                 let value_vec: Vec<&str> = value
-                    .split("@")
+                    .split('@')
                     .collect::<Vec<&str>>()
                     .iter()
                     .map(|x| x.trim())
@@ -295,7 +295,7 @@ impl<'de> serde::Deserialize<'de> for Segment {
                 let power_target: PowerTarget = value_vec[1]
                     .parse()
                     .map_err(|e| Error::invalid_value(Unexpected::Str(value_vec[1]), &e))?;
-                (duration, power_target.clone(), power_target)
+                (duration, power_target, power_target)
             }
             SegType::B {
                 duration,
@@ -327,6 +327,16 @@ impl<'de> serde::Deserialize<'de> for Segment {
 
 #[derive(Clone, Deserialize)]
 struct IntervalTemplate {
+    name: Option<String>,
+    description: Option<String>,
+    duration: Duration,
+    segments: Vec<Segment>,
+    lap_each_segment: bool,
+    repeat: Option<Quantity>,
+}
+
+#[derive(Clone, Deserialize)]
+struct ShadowIntervalTemplate {
     name: String,
     description: String,
     duration: Duration,
@@ -336,7 +346,7 @@ struct IntervalTemplate {
 }
 
 //TODO implement proper errors
-impl IntervalTemplate {
+impl ShadowIntervalTemplate {
     fn validate(&self) -> Result<(), &'static str> {
         let seg_duration = self
             .segments
@@ -346,6 +356,17 @@ impl IntervalTemplate {
             return Err("duration does not match duration calculated from segments");
         }
         Ok(())
+    }
+
+    fn build(self) -> IntervalTemplate {
+        IntervalTemplate {
+            name: Some(self.name),
+            description: Some(self.description),
+            duration: self.duration,
+            segments: self.segments,
+            lap_each_segment: self.lap_each_segment,
+            repeat: self.repeat,
+        }
     }
 }
 
@@ -415,7 +436,7 @@ impl<'de> serde::Deserialize<'de> for IntervalTemplateType {
         match IntervalType::deserialize(deserializer)? {
             IntervalType::A(value) => {
                 let v: Vec<&str> = value
-                    .split("@")
+                    .split('@')
                     .collect::<Vec<&str>>()
                     .iter()
                     .map(|x| x.trim())
@@ -438,8 +459,8 @@ impl<'de> serde::Deserialize<'de> for IntervalTemplateType {
                     start_time: 0.into(),
                 };
                 let interval_template = IntervalTemplate {
-                    name: String::from("this should be optional"),
-                    description: String::from("this should be optional"),
+                    name: Some(String::from("this should be optional")),
+                    description: Some(String::from("this should be optional")),
                     duration,
                     lap_each_segment: false,
                     segments: vec![segment],
@@ -464,8 +485,8 @@ impl<'de> serde::Deserialize<'de> for IntervalTemplateType {
                 // Need to validate IntervalTemplates that are created from segments
                 // passed into the WorkoutTemplate
                 Ok(Self::IntervalTemplate(IntervalTemplate {
-                    name: String::from("this should be optional"),
-                    description: String::from("this should be optional"),
+                    name: Some(String::from("this should be optional")),
+                    description: Some(String::from("this should be optional")),
                     duration: interval_duration,
                     lap_each_segment: lap_each_segment.unwrap_or(false),
                     segments: vec![segment],
@@ -520,7 +541,7 @@ impl ShadowWorkoutTemplate {
         Ok(())
     }
 
-    fn build_workout(self) -> WorkoutTemplate {
+    fn build_workout_template(self) -> WorkoutTemplate {
         let intervals: Vec<IntervalTemplate> = self
             .intervals
             .iter()
@@ -557,7 +578,7 @@ struct Library {
 
 #[derive(Deserialize)]
 struct ShadowLibrary {
-    intervals: Option<Vec<IntervalTemplate>>,
+    intervals: Option<Vec<ShadowIntervalTemplate>>,
     workouts: Option<Vec<ShadowWorkoutTemplate>>,
 }
 
@@ -631,7 +652,9 @@ mod test {
                     match library.intervals.contains_key(&interval.name) {
                         true => continue, //Also log error for duplicate key
                         false => {
-                            library.intervals.insert(interval.name.clone(), interval);
+                            library
+                                .intervals
+                                .insert(interval.name.clone(), interval.build());
                         }
                     }
                 }
@@ -644,7 +667,7 @@ mod test {
                         // log error
                         continue;
                     }
-                    let workout = shadow_workout.build_workout();
+                    let workout = shadow_workout.build_workout_template();
                     library.workouts.insert(workout.name.clone(), workout);
                 }
             }
@@ -662,7 +685,48 @@ mod test {
     }
 
     #[test]
-    fn test_interval_template() {
+    fn test_library_single_workout() {
+        // Sample intervals like they would be read from multiple files.
+        let s1 = r#"
+        [[ workouts ]]
+        name = "Sample workout"
+        description = "Test sample"
+        duration = "1h"
+        lap_each_interval = true
+        intervals = [
+          '10m@.55',
+          '40m@225',
+          '10m@.55'
+        ]"#;
+
+        let mut library = Library {
+            intervals: BTreeMap::new(),
+            workouts: BTreeMap::new(),
+        };
+
+        let sl: ShadowLibrary = toml::from_str(s1).unwrap();
+        if let Some(contents) = sl.workouts {
+            for shadow_workout in contents {
+                let workout = shadow_workout.build_workout_template();
+                library.workouts.insert(workout.name.clone(), workout);
+            }
+        }
+        assert_eq!(library.workouts.len(), 1);
+        let sample_workout = library.workouts.get("Sample workout").unwrap();
+        assert_eq!(sample_workout.duration, Duration::from_str("1h").unwrap());
+        assert_eq!(sample_workout.intervals.len(), 3);
+        assert_eq!(
+            sample_workout.intervals[0].duration,
+            Duration::from_str("10m").unwrap()
+        );
+        assert_eq!(
+            sample_workout.intervals[0].segments[0].power_start,
+            PowerTarget::Percentage(0.55)
+        );
+    }
+
+    #[test]
+    fn test_shadow_interval_template() {
         let it_str = r#"
         name = "Warmup"
         description = "Warming up the legs"
@@ -676,16 +740,16 @@ mod test {
           '2m@100',
         ]"#;
 
-        let foo: IntervalTemplate = toml::from_str(it_str).unwrap();
+        let foo: ShadowIntervalTemplate = toml::from_str(it_str).unwrap();
         assert_eq!(foo.name, String::from("Warmup"));
         assert_eq!(foo.description, String::from("Warming up the legs"));
         assert_eq!(foo.duration, Duration::from_str("10m").unwrap());
-        assert_eq!(foo.lap_each_segment, false);
+        assert!(!foo.lap_each_segment);
         assert_eq!(foo.segments.len(), 5);
     }
 
     #[test]
-    fn test_interval_template_with_repeat() {
+    fn test_shadow_interval_template_with_repeat() {
         let it_str = r#"
         name = "30on/30off"
         description = "30s on @ 1.2, 30s off @ .55"
@@ -698,18 +762,18 @@ mod test {
         repeat = 10
         "#;
 
-        let foo: IntervalTemplate = toml::from_str(it_str).unwrap();
+        let foo: ShadowIntervalTemplate = toml::from_str(it_str).unwrap();
         assert!(foo.validate().is_ok());
         assert_eq!(foo.name, String::from("30on/30off"));
         assert_eq!(foo.description, String::from("30s on @ 1.2, 30s off @ .55"));
         assert_eq!(foo.duration, Duration::from_str("10m").unwrap());
-        assert_eq!(foo.lap_each_segment, true);
+        assert!(foo.lap_each_segment);
         assert_eq!(foo.segments.len(), 2);
         assert_eq!(foo.repeat, Some(Quantity(10)));
     }
 
     #[test]
-    fn test_interval_template_validate() {
+    fn test_shadow_interval_template_validate() {
         let it_str = r#"
         name = "Warmup"
         description = "Warming up the legs"
@@ -723,7 +787,7 @@ mod test {
           '2m@100',
         ]"#;
 
-        let foo: IntervalTemplate = toml::from_str(it_str).unwrap();
+        let foo: ShadowIntervalTemplate = toml::from_str(it_str).unwrap();
         assert!(foo.validate().is_ok());
     }
     #[test]
@@ -752,7 +816,7 @@ mod test {
         assert_eq!(foo.segments[0].duration, Duration(120));
         assert_eq!(foo.segments[0].power_start, PowerTarget::Percentage(0.85));
         assert_eq!(foo.segments[3].power_end, PowerTarget::Watts(150));
-        assert_eq!(foo.segments[4].duration, Duration(1 * 3600 + 6 * 60 + 30));
+        assert_eq!(foo.segments[4].duration, Duration(3600 + 6 * 60 + 30));
         assert_eq!(foo.segments[5].power_start, PowerTarget::Watts(200));
         assert_eq!(foo.segments[6].power_end, PowerTarget::Percentage(0.85));
     }
@@ -770,17 +834,17 @@ mod test {
     #[test]
     fn test_duration_hours() {
         let d: Duration = "1h".parse().unwrap();
-        assert_eq!(d, Duration(1 * 3600));
+        assert_eq!(d, Duration(3600));
     }
     #[test]
     fn test_duration_minutes_seconds() {
         let d: Duration = "1m30s".parse().unwrap();
-        assert_eq!(d, Duration(1 * 60 + 30));
+        assert_eq!(d, Duration(60 + 30));
     }
     #[test]
     fn test_duration_hours_minutes() {
         let d: Duration = "1h30m".parse().unwrap();
-        assert_eq!(d, Duration(1 * 3600 + 30 * 60));
+        assert_eq!(d, Duration(3600 + 30 * 60));
     }
     #[test]
     fn test_duration_hours_seconds() {
