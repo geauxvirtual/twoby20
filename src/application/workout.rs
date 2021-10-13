@@ -335,6 +335,23 @@ struct IntervalTemplate {
     repeat: Option<Quantity>,
 }
 
+#[derive(Clone)]
+struct ValidateIntervalTemplate {
+    name: String,
+    duration: Option<Duration>,
+    segments: Option<Vec<SegmentUpdate>>,
+    lap_each_segment: Option<bool>,
+    repeat: Option<Quantity>,
+}
+
+#[derive(Clone)]
+struct SegmentUpdate {
+    index: usize,
+    duration: Option<Duration>,
+    power_start: Option<PowerTarget>,
+    power_end: Option<PowerTarget>,
+}
+
 #[derive(Clone, Deserialize)]
 struct ShadowIntervalTemplate {
     name: String,
@@ -407,6 +424,9 @@ impl ShadowIntervalTemplate {
 enum IntervalTemplateType {
     // A name of an Interval or a segment that can be parsed into a string.
     Validate(String),
+    // An IntervalTemplate that needs to be validated by name and has fields
+    // to update in a found IntervalTemplate
+    ValidateAndUpdate(ValidateIntervalTemplate),
     // A valid IntervalTemplate
     IntervalTemplate(IntervalTemplate),
 }
@@ -430,6 +450,13 @@ impl<'de> serde::Deserialize<'de> for IntervalTemplateType {
                 power_end: PowerTarget,
                 repeat: Option<Quantity>,
                 lap_each_segment: Option<bool>,
+            },
+            C {
+                name: String,
+                duration: Option<Duration>,
+                lap_each_segment: Option<bool>,
+                repeat: Option<Quantity>,
+                segments: Option<Vec<String>>,
             },
         }
 
@@ -493,6 +520,61 @@ impl<'de> serde::Deserialize<'de> for IntervalTemplateType {
                     repeat,
                 }))
             }
+            IntervalType::C {
+                name,
+                duration,
+                repeat,
+                lap_each_segment,
+                segments,
+            } => {
+                let mut merge_segments: Vec<SegmentUpdate> = Vec::new();
+                if let Some(segs) = segments {
+                    for seg in segs {
+                        // Split segment by ':' to find out which segment to update
+                        let v1: Vec<&str> = seg
+                            .split(':')
+                            .collect::<Vec<&str>>()
+                            .iter()
+                            .map(|x| x.trim())
+                            .collect::<Vec<&str>>();
+                        // Split by '@' to find out if duration or power target is updated.
+                        let v2: Vec<&str> = v1[1]
+                            .split('@')
+                            .collect::<Vec<&str>>()
+                            .iter()
+                            .map(|x| x.trim())
+                            .collect::<Vec<&str>>();
+                        let duration = if v2[0] != "" {
+                            Some(Duration::from_str(v2[0]).unwrap())
+                        } else {
+                            None
+                        };
+
+                        let power_target = if v2[1] != "" {
+                            Some(PowerTarget::from_str(v2[1]).unwrap())
+                        } else {
+                            None
+                        };
+                        merge_segments.push(SegmentUpdate {
+                            index: v1[0].parse::<usize>().unwrap(),
+                            duration,
+                            power_start: power_target,
+                            power_end: power_target,
+                        });
+                    }
+                }
+                Ok(Self::ValidateAndUpdate(ValidateIntervalTemplate {
+                    name,
+                    duration,
+                    repeat,
+                    lap_each_segment,
+                    segments: if merge_segments.len() != 0 {
+                        Some(merge_segments)
+                    } else {
+                        None
+                    },
+                }))
+            }
         }
     }
 }
@@ -527,12 +609,45 @@ impl ShadowWorkoutTemplate {
         for interval_type in self.intervals.iter_mut() {
             match interval_type {
                 IntervalTemplateType::Validate(value) => {
+                    // Need to return an error here template can't be found
                     if let Some(template) = interval_templates.get(value) {
                         duration += template.duration;
                         *interval_type = IntervalTemplateType::IntervalTemplate(template.clone())
                     }
                 }
                 IntervalTemplateType::IntervalTemplate(template) => duration += template.duration,
+                IntervalTemplateType::ValidateAndUpdate(validate_template) => {
+                    match interval_templates.get(&validate_template.name) {
+                        Some(template) => {
+                            let mut t = template.clone();
+                            if let Some(d) = validate_template.duration {
+                                t.duration = d;
+                            }
+                            if let Some(les) = validate_template.lap_each_segment {
+                                t.lap_each_segment = les;
+                            }
+                            if let Some(repeat) = validate_template.repeat {
+                                t.repeat = Some(repeat);
+                            }
+                            if let Some(segments) = &validate_template.segments {
+                                for seg in segments {
+                                    if let Some(d) = seg.duration {
+                                        t.segments[seg.index].duration = d;
+                                    }
+                                    if let Some(ps) = seg.power_start {
+                                        t.segments[seg.index].power_start = ps;
+                                    }
+                                    if let Some(pe) = seg.power_end {
+                                        t.segments[seg.index].power_end = pe;
+                                    }
+                                }
+                            }
+                            duration += t.duration;
+                            *interval_type = IntervalTemplateType::IntervalTemplate(t.clone());
+                        }
+                        None => return Err("Template not found"), // return error
+                    }
+                }
             }
         }
         if self.duration != duration {
@@ -586,6 +701,110 @@ struct ShadowLibrary {
 mod test {
     use super::*;
 
+    #[test]
+    fn test_library_update_interval_info() {
+        // Sample intervals like they would be read from multiple files.
+        let s1 = r#"
+        [[ intervals ]]
+        name = "Warmup"
+        description = "This needs to be optional"
+        duration = "10m"
+        lap_each_segment = false
+        segments = [
+          '5m@100',
+          '1m@110',
+          '1m@120',
+          '1m@130',
+          '2m@100',
+        ]
+
+        [[ intervals ]]
+        name = "Cooldown"
+        description = "This needs to be optional"
+        duration = "5m"
+        lap_each_segment = false
+        segments = ['5m@.55']
+        "#;
+
+        let s2 = r#"
+        [[ intervals ]]
+        name = "2by20"
+        description = "This needs to be optional"
+        duration = "45m"
+        lap_each_segment = true
+        segments = [
+          '20m@.85',
+          '5m@.55',
+          '20m@.85'
+        ]
+
+        [[ workouts ]]
+        name = "Metcalfe"
+        description = "2x20 at tempo"
+        duration = "1h20m"
+        lap_each_interval = true
+        intervals = [
+          'Warmup',
+          { name = '2by20', duration = '1h5m', segments = ["0:30m@", "2:30m@"]},
+          { duration = "5m", power_start = 0.85, power_end = 0.55 },
+        ]"#;
+
+        let mut library = Library {
+            intervals: BTreeMap::new(),
+            workouts: BTreeMap::new(),
+        };
+        for file in vec![s1, s2].iter() {
+            // This is a simplied version of reading in file contents then
+            // parsing the contents into our data structure.
+            let sl: ShadowLibrary = toml::from_str(file).unwrap();
+            // Loop through read in intervals
+            if let Some(contents) = sl.intervals {
+                for interval in contents {
+                    if let Err(_e) = interval.validate() {
+                        // log error
+                        continue;
+                    }
+                    match library.intervals.contains_key(&interval.name) {
+                        true => continue, //Also log error for duplicate key
+                        false => {
+                            library
+                                .intervals
+                                .insert(interval.name.clone(), interval.build());
+                        }
+                    }
+                }
+            }
+            if let Some(contents) = sl.workouts {
+                for mut shadow_workout in contents {
+                    // Need a build and a validate method. Validate the duration
+                    // and any interval templates passed in. Merge interval templates, etc.
+                    if let Err(_e) = shadow_workout.validate(&library.intervals) {
+                        // log error
+                        continue;
+                    }
+                    let workout = shadow_workout.build_workout_template();
+                    library.workouts.insert(workout.name.clone(), workout);
+                }
+            }
+        }
+        assert_eq!(library.intervals.len(), 3);
+        assert_eq!(library.workouts.len(), 1);
+        let sample_workout = library.workouts.get("Metcalfe").unwrap();
+        assert_eq!(
+            sample_workout.duration,
+            Duration::from_str("1h20m").unwrap()
+        );
+        assert_eq!(
+            sample_workout.intervals[1].segments[0].duration,
+            Duration::from_str("30m").unwrap()
+        );
+        assert_eq!(sample_workout.intervals[0].segments.len(), 5);
+        assert_eq!(sample_workout.intervals[1].segments.len(), 3);
+        assert_eq!(
+            sample_workout.intervals[2].segments[0].power_start,
+            PowerTarget::Percentage(0.85)
+        );
+    }
     #[test]
     fn test_library() {
         // Sample intervals like they would be read from multiple files.
