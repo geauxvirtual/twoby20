@@ -2,7 +2,7 @@ use iced::{
     button, text_input, Align, Button, Column, Container, Element, Length, Row, Text, TextInput,
 };
 
-use log::error;
+//use log::error;
 
 // UserProfile to allow multiple users of the software. Allows for a user
 // to easily have workouts adjusted based on their FTP setting.
@@ -27,7 +27,7 @@ impl std::fmt::Display for UserProfile {
         //struct, the initial default user will be displayed as "New..."
         //This can be worked around by only displaying profiles from [1..]
         //if we ever need to loop through profiles and display them.
-        let name = if self.name.len() == 0 {
+        let name = if self.name.is_empty() {
             "New..."
         } else {
             &self.name
@@ -62,13 +62,17 @@ impl UserProfile {
     }
 
     pub fn update(&mut self, message: UserProfileMessage) {
-        match message {
+        if let UserProfileMessage::SaveProfile(name, ftp) = message {
+            self.name = name;
+            self.ftp = ftp;
+        }
+        /*match message {
             UserProfileMessage::SaveProfile(name, ftp) => {
                 self.name = name;
                 self.ftp = ftp;
             }
             _ => {}
-        }
+        }*/
     }
 }
 #[derive(Debug, Clone, Default)]
@@ -104,7 +108,7 @@ impl UserProfileState {
                 match value.parse::<u16>() {
                     Ok(_) => self.ftp_input = value,
                     Err(_) => {
-                        if value.len() == 0 {
+                        if value.is_empty() {
                             self.ftp_input = value;
                         }
                     }
@@ -127,10 +131,10 @@ impl UserProfileState {
         // If we our name_input field is empty, then set name_input to current
         // profile name
         if !self.editing {
-            if self.name_input.len() == 0 {
+            if self.name_input.is_empty() {
                 self.name_input = profile.name.clone();
             }
-            if self.ftp_input.len() == 0 && profile.ftp != 0 {
+            if self.ftp_input.is_empty() && profile.ftp != 0 {
                 self.ftp_input = profile.ftp.to_string();
             }
         }
@@ -139,16 +143,16 @@ impl UserProfileState {
         let button = |state, label| Button::new(state, Text::new(label).size(16)).padding(8);
         let mut save_button = button(&mut self.save_button, "Save");
 
-        if (self.name_input.len() != 0
-            && self.ftp_input.len() != 0
+        if (self.name_input.is_empty()
+            && !self.ftp_input.is_empty()
             && self.name_input != profile.name
             && self.ftp_input != profile.ftp.to_string())
             || (self.name_input != profile.name
-                && self.name_input.len() != 0
+                && !self.name_input.is_empty()
                 && self.ftp_input == profile.ftp.to_string())
             || (self.name_input == profile.name
                 && self.ftp_input != profile.ftp.to_string()
-                && self.ftp_input.len() != 0)
+                && !self.ftp_input.is_empty())
         {
             save_button = save_button.on_press(UserProfileMessage::SaveProfile(
                 self.name_input.clone(),
@@ -157,7 +161,7 @@ impl UserProfileState {
         }
 
         let mut delete_button = button(&mut self.delete_button, "Delete");
-        if profile.name.len() != 0 {
+        if !profile.name.is_empty() {
             delete_button = delete_button.on_press(UserProfileMessage::DeleteProfile);
         }
 
