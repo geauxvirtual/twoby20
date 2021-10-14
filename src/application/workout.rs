@@ -95,6 +95,7 @@ use crate::application::types::{Duration, PowerTarget, Quantity, StartTime};
 use serde::de::Unexpected;
 use serde_derive::Deserialize;
 
+use std::collections::BTreeMap;
 use std::str::FromStr;
 
 #[derive(Clone)]
@@ -532,7 +533,6 @@ impl ShadowWorkoutTemplate {
 // Read in all intervals and validate the intervals.
 // Read in all workouts, validate workouts against known intervals, and build
 // a workout by expanding out
-use std::collections::BTreeMap;
 struct Library {
     intervals: BTreeMap<String, IntervalTemplate>,
     workouts: BTreeMap<String, WorkoutTemplate>,
