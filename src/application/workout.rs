@@ -373,6 +373,7 @@ impl<'de> serde::Deserialize<'de> for IntervalTemplateType {
                 lap_each_segment,
                 segments,
             } => {
+                // TODO catch all these unwrap(s)()
                 let mut merge_segments: Vec<SegmentUpdate> = Vec::new();
                 if let Some(segs) = segments {
                     for seg in segs {
@@ -390,13 +391,13 @@ impl<'de> serde::Deserialize<'de> for IntervalTemplateType {
                             .iter()
                             .map(|x| x.trim())
                             .collect::<Vec<&str>>();
-                        let duration = if v2[0] != "" {
+                        let duration = if !v2[0].is_empty() {
                             Some(Duration::from_str(v2[0]).unwrap())
                         } else {
                             None
                         };
 
-                        let power_target = if v2[1] != "" {
+                        let power_target = if !v2[1].is_empty() {
                             Some(PowerTarget::from_str(v2[1]).unwrap())
                         } else {
                             None
