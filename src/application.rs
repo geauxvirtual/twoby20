@@ -17,6 +17,7 @@ use libant::Request;
 use log::{debug, error, info};
 
 mod menubar;
+mod types;
 mod user_profile;
 mod workout;
 use menubar::MenuBar;
