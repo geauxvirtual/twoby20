@@ -415,7 +415,7 @@ impl<'de> serde::Deserialize<'de> for IntervalTemplateType {
                     duration,
                     repeat,
                     lap_each_segment,
-                    segments: if merge_segments.len() != 0 {
+                    segments: if !merge_segments.is_empty() {
                         Some(merge_segments)
                     } else {
                         None
