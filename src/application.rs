@@ -45,7 +45,7 @@ pub fn run() {
         ..Default::default()
     };
     Application::run(Settings {
-        flags: flags,
+        flags,
         window: window_settings,
         exit_on_close_request: false,
         ..Settings::default()
@@ -218,15 +218,15 @@ impl IcedApplication for Application {
             AppState::Ready => {
                 match message {
                     Message::Tick(_) => {} //do nothing for now
-                    Message::EventOccurred(event) => {
+                    Message::EventOccurred(Event::Window(window::Event::CloseRequested)) => {
                         // May want to look into how to filter events before getting to this update
-                        if let Event::Window(window::Event::CloseRequested) = event {
-                            log::info!("Exiting application");
-                            // Send quit request to ANT+ run thread
-                            self.ant_request_tx.send(Request::Quit).unwrap();
-                            thread::sleep(Duration::from_millis(500));
-                            self.should_exit = true;
-                        }
+                        //if let Event::Window(window::Event::CloseRequested) = event {
+                        log::info!("Exiting application");
+                        // Send quit request to ANT+ run thread
+                        self.ant_request_tx.send(Request::Quit).unwrap();
+                        thread::sleep(Duration::from_millis(500));
+                        self.should_exit = true;
+                        //}
                     }
                     Message::ShowUserProfile => self.screen_state = ScreenState::UserProfile,
                     Message::ShowWorkouts => self.screen_state = ScreenState::Workouts,
