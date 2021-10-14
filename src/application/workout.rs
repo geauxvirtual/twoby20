@@ -64,7 +64,7 @@
 // duration = '45m'
 // intervals = [
 //   'Warmup',
-//   { name = '30 on/30 off', repeat = '30' },
+//   { name = '30 on/30 off', repeat = 30 },
 //   '5m@.55' #5:30m 5m30s 1h10m30s
 // ]
 // lap_each_interval = true
@@ -75,7 +75,7 @@
 // duration = '45m'
 // intervals = [
 //   'Warmup',
-//   { name = '30 on/30 off', segments = { 0 = '@1.5'}, repeat = '30' },
+//   { name = '30 on/30 off', segments = ["0:@1.5"], repeat = 30 },
 //   '5m@.55'
 // ]
 // lap_each_interval = true
