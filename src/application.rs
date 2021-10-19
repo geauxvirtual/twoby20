@@ -14,7 +14,7 @@ use iced::{
 };
 use iced_native::{subscription, window, Event};
 use libant::Request;
-use log::{debug, error, info};
+use log::{error, info};
 
 mod menubar;
 mod types;
@@ -22,6 +22,7 @@ mod user_profile;
 mod workout;
 use menubar::MenuBar;
 use user_profile::{UserProfile, UserProfileMessage, UserProfileState};
+use workout::Library;
 
 // Run() is the main function to call. This handles starting up all the
 // threads and configuring the channels.
@@ -111,6 +112,7 @@ struct Application {
     ant_request_tx: libant::Sender<Request>,
     active_user_profile: usize,
     user_profiles: Vec<UserProfile>,
+    library: Library,
     workouts: Vec<Workout>,
     menubar: MenuBar,
     user_profile_screen: UserProfileState,
@@ -164,7 +166,8 @@ impl IcedApplication for Application {
                     .expect("Error 001: Application misconfigured"),
                 user_profiles: vec![UserProfile::new(true)],
                 active_user_profile: 0,
-                workouts: vec![], //There will be a single default workout always loaded. For now just created an empty vec.
+                library: Library::default(),
+                workouts: vec![],
                 menubar: MenuBar::default(),
                 user_profile_screen: UserProfileState::default(),
             },

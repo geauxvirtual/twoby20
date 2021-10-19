@@ -542,7 +542,7 @@ impl ShadowWorkoutTemplate {
 // Read in all intervals and validate the intervals.
 // Read in all workouts, validate workouts against known intervals, and build
 // a workout by expanding out
-struct Library {
+pub struct Library {
     intervals: BTreeMap<String, IntervalTemplate>,
     workouts: BTreeMap<String, WorkoutTemplate>,
 }
