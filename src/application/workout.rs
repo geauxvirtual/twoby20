@@ -547,15 +547,116 @@ struct Library {
     workouts: BTreeMap<String, WorkoutTemplate>,
 }
 
+impl Library {
+    fn new() -> Self {
+        Self {
+            intervals: BTreeMap::new(),
+            workouts: BTreeMap::new(),
+        }
+    }
+}
+
+impl Default for Library {
+    fn default() -> Self {
+        let mut library = Self::new();
+        // Ok to unwrap here as this will be called with setting up applicaiton.
+        // Application shouldn't start if our defaults are wrong.
+        let sl: ShadowLibrary = toml::from_str(&default_library_templates()).unwrap();
+        if let Some(contents) = sl.intervals {
+            // Loop through default intervals, validate them, and add them to the library.
+            for interval in contents {
+                if let Err(_e) = interval.validate() {
+                    panic!("Invalid default intervals within application")
+                }
+                // As this is being deserialized through Serde where Serde
+                // requires a name to be present, unwrap can be called here
+                let name = interval.name.clone().unwrap();
+                match library.intervals.contains_key(&name) {
+                    true => panic!("Trying to load duplicate defaut intervals into library"), //Also log error for duplicate key
+                    false => {
+                        library.intervals.insert(name, interval);
+                    }
+                }
+            }
+        }
+        if let Some(contents) = sl.workouts {
+            for mut shadow_workout in contents {
+                if let Err(_e) = shadow_workout.validate(&library.intervals) {
+                    panic!("Invalid default workout within application");
+                }
+                let workout = shadow_workout.build_workout_template();
+                library.workouts.insert(workout.name.clone(), workout);
+            }
+        }
+        library
+    }
+}
+
 #[derive(Deserialize)]
 struct ShadowLibrary {
     intervals: Option<Vec<IntervalTemplate>>,
     workouts: Option<Vec<ShadowWorkoutTemplate>>,
 }
 
+// Application default intervals and workout templates
+fn default_library_templates() -> String {
+    r#"
+    [[ intervals ]]
+    name = "Warmup"
+    description = "Warming up the legs"
+    duration = "10m"
+    segments = [
+      '5m @ 100',
+      '1m @ 110',
+      '1m @ 120',
+      '1m @ 130',
+      '2m @ 100'
+    ]
+
+    [[ intervals ]]
+    name = "2x20"
+    description = "2x20 at Tempo (85%)"
+    duration = "45m"
+    lap_each_segment = true
+    segments = [
+      '20m @ 0.85',
+      '5m @ 0.55',
+      '20m @ 0.85',
+    ]
+
+    [[ intervals ]]
+    name = "Cooldown"
+    description = "Cool on down"
+    duration = "5m"
+    segments = [
+      '5m @ 0.55'
+    ]
+
+    [[ workouts ]]
+    name = "Metcalfe"
+    description = "2x20 at Tempo with 5m recovery"
+    duration = "1h"
+    lap_each_interval = true
+    intervals = [
+      'Warmup',
+      '2x20',
+      'Cooldown',
+    ]"#
+    .to_string()
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_default_library() {
+        let library = Library::default();
+        assert!(!library.intervals.is_empty());
+        assert!(!library.workouts.is_empty());
+        assert_eq!(library.intervals.len(), 3);
+        assert_eq!(library.workouts.len(), 1);
+    }
 
     #[test]
     fn test_library_update_interval_info() {
