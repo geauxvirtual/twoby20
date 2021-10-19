@@ -172,7 +172,9 @@ impl<'de> serde::Deserialize<'de> for Segment {
 // ]
 // lap_each_segment = false
 
-#[derive(Clone, Deserialize)]
+// TODO Refactor what's being done with IntervalTemplate to simplify what's
+// going on here.
+#[derive(Clone)]
 struct IntervalTemplate {
     name: Option<String>,
     description: Option<String>,
@@ -180,6 +182,48 @@ struct IntervalTemplate {
     segments: Vec<Segment>,
     lap_each_segment: bool,
     repeat: Option<Quantity>,
+}
+
+impl IntervalTemplate {
+    fn validate(&self) -> Result<(), &'static str> {
+        let seg_duration = self
+            .segments
+            .iter()
+            .fold(Duration::from(0), |acc, x| acc + x.duration);
+        if self.duration != seg_duration * self.repeat.unwrap_or(Quantity(1)) {
+            return Err("duration does not match duration calculated from segments");
+        }
+        Ok(())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for IntervalTemplate {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        //        use serde::de::Error;
+
+        #[derive(Deserialize)]
+        struct ShadowIntervalTemplate {
+            name: String,
+            description: Option<String>,
+            duration: Duration,
+            segments: Vec<Segment>,
+            lap_each_segment: Option<bool>,
+            repeat: Option<Quantity>,
+        }
+
+        let sil = ShadowIntervalTemplate::deserialize(deserializer)?;
+        Ok(Self {
+            name: Some(sil.name),
+            description: sil.description,
+            duration: sil.duration,
+            segments: sil.segments,
+            lap_each_segment: sil.lap_each_segment.unwrap_or(false),
+            repeat: sil.repeat,
+        })
+    }
 }
 
 #[derive(Clone)]
@@ -197,41 +241,6 @@ struct SegmentUpdate {
     duration: Option<Duration>,
     power_start: Option<PowerTarget>,
     power_end: Option<PowerTarget>,
-}
-
-#[derive(Clone, Deserialize)]
-struct ShadowIntervalTemplate {
-    name: String,
-    description: String,
-    duration: Duration,
-    segments: Vec<Segment>,
-    lap_each_segment: bool,
-    repeat: Option<Quantity>,
-}
-
-//TODO implement proper errors
-impl ShadowIntervalTemplate {
-    fn validate(&self) -> Result<(), &'static str> {
-        let seg_duration = self
-            .segments
-            .iter()
-            .fold(Duration::from(0), |acc, x| acc + x.duration);
-        if self.duration != seg_duration * self.repeat.unwrap_or(Quantity(1)) {
-            return Err("duration does not match duration calculated from segments");
-        }
-        Ok(())
-    }
-
-    fn build(self) -> IntervalTemplate {
-        IntervalTemplate {
-            name: Some(self.name),
-            description: Some(self.description),
-            duration: self.duration,
-            segments: self.segments,
-            lap_each_segment: self.lap_each_segment,
-            repeat: self.repeat,
-        }
-    }
 }
 
 // // workout example
@@ -540,7 +549,7 @@ struct Library {
 
 #[derive(Deserialize)]
 struct ShadowLibrary {
-    intervals: Option<Vec<ShadowIntervalTemplate>>,
+    intervals: Option<Vec<IntervalTemplate>>,
     workouts: Option<Vec<ShadowWorkoutTemplate>>,
 }
 
@@ -611,12 +620,13 @@ mod test {
                         // log error
                         continue;
                     }
-                    match library.intervals.contains_key(&interval.name) {
+                    // As this is being deserialized through Serde where Serde
+                    // requires a name to be present, unwrap can be called here
+                    let name = interval.name.clone().unwrap();
+                    match library.intervals.contains_key(&name) {
                         true => continue, //Also log error for duplicate key
                         false => {
-                            library
-                                .intervals
-                                .insert(interval.name.clone(), interval.build());
+                            library.intervals.insert(name, interval);
                         }
                     }
                 }
@@ -715,12 +725,11 @@ mod test {
                         // log error
                         continue;
                     }
-                    match library.intervals.contains_key(&interval.name) {
+                    let name = interval.name.clone().unwrap();
+                    match library.intervals.contains_key(&name) {
                         true => continue, //Also log error for duplicate key
                         false => {
-                            library
-                                .intervals
-                                .insert(interval.name.clone(), interval.build());
+                            library.intervals.insert(name, interval);
                         }
                     }
                 }
@@ -792,7 +801,7 @@ mod test {
     }
 
     #[test]
-    fn test_shadow_interval_template() {
+    fn test_interval_template() {
         let it_str = r#"
         name = "Warmup"
         description = "Warming up the legs"
@@ -806,16 +815,16 @@ mod test {
           '2m@100',
         ]"#;
 
-        let foo: ShadowIntervalTemplate = toml::from_str(it_str).unwrap();
-        assert_eq!(foo.name, String::from("Warmup"));
-        assert_eq!(foo.description, String::from("Warming up the legs"));
+        let foo: IntervalTemplate = toml::from_str(it_str).unwrap();
+        assert_eq!(foo.name, Some(String::from("Warmup")));
+        assert_eq!(foo.description, Some(String::from("Warming up the legs")));
         assert_eq!(foo.duration, Duration::from_str("10m").unwrap());
         assert!(!foo.lap_each_segment);
         assert_eq!(foo.segments.len(), 5);
     }
 
     #[test]
-    fn test_shadow_interval_template_with_repeat() {
+    fn test_interval_template_with_repeat() {
         let it_str = r#"
         name = "30on/30off"
         description = "30s on @ 1.2, 30s off @ .55"
@@ -828,10 +837,13 @@ mod test {
         repeat = 10
         "#;
 
-        let foo: ShadowIntervalTemplate = toml::from_str(it_str).unwrap();
+        let foo: IntervalTemplate = toml::from_str(it_str).unwrap();
         assert!(foo.validate().is_ok());
-        assert_eq!(foo.name, String::from("30on/30off"));
-        assert_eq!(foo.description, String::from("30s on @ 1.2, 30s off @ .55"));
+        assert_eq!(foo.name, Some(String::from("30on/30off")));
+        assert_eq!(
+            foo.description,
+            Some(String::from("30s on @ 1.2, 30s off @ .55"))
+        );
         assert_eq!(foo.duration, Duration::from_str("10m").unwrap());
         assert!(foo.lap_each_segment);
         assert_eq!(foo.segments.len(), 2);
@@ -839,7 +851,7 @@ mod test {
     }
 
     #[test]
-    fn test_shadow_interval_template_validate() {
+    fn test_interval_template_validate() {
         let it_str = r#"
         name = "Warmup"
         description = "Warming up the legs"
@@ -853,9 +865,10 @@ mod test {
           '2m@100',
         ]"#;
 
-        let foo: ShadowIntervalTemplate = toml::from_str(it_str).unwrap();
+        let foo: IntervalTemplate = toml::from_str(it_str).unwrap();
         assert!(foo.validate().is_ok());
     }
+
     #[test]
     fn test_segment() {
         // Test our use cases for writing out a segment.
