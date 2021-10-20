@@ -22,7 +22,7 @@ mod user_profile;
 mod workout;
 use menubar::MenuBar;
 use user_profile::{UserProfile, UserProfileMessage, UserProfileState};
-use workout::Library;
+use workout::{Library, ShadowLibrary};
 
 // Run() is the main function to call. This handles starting up all the
 // threads and configuring the channels.
@@ -186,6 +186,33 @@ impl IcedApplication for Application {
         match self.state {
             AppState::Starting => match message {
                 Message::Loaded(Ok(state)) => {
+                    // Load the library of workouts/intervals that were retrieved
+                    // from local files.
+                    if let Some(intervals) = state.shadow_library.intervals {
+                        for interval in intervals {
+                            if let Err(_e) = interval.validate() {
+                                // log error
+                                continue;
+                            }
+                            let name = interval.name.clone().unwrap();
+                            match self.library.intervals.contains_key(&name) {
+                                true => continue, //log error for duplicate key
+                                false => self.library.intervals.insert(name, interval),
+                            };
+                        }
+                    }
+
+                    if let Some(workouts) = state.shadow_library.workouts {
+                        for mut shadow_workout in workouts {
+                            if let Err(_e) = shadow_workout.validate(&self.library.intervals) {
+                                // log error
+                                continue;
+                            }
+                            let workout = shadow_workout.build_workout_template();
+                            self.library.workouts.insert(workout.name.clone(), workout);
+                        }
+                    }
+
                     if let Some(workouts) = state.workouts {
                         self.workouts.extend_from_slice(&workouts);
                     }
@@ -419,6 +446,7 @@ struct Workout;
 pub struct SavedState {
     user_profiles: Option<Vec<UserProfile>>,
     workouts: Option<Vec<Workout>>,
+    shadow_library: ShadowLibrary,
 }
 
 // TODO: Implement application error logic. Doing this for now.
@@ -440,9 +468,11 @@ impl SavedState {
         // don't exist created them.
         // - Load profiles from $HOME_DIR/Documents/2by20/profiles
         // - Load workouts from $HOME_DIR/Documents/2by20/workouts
+        let sl = ShadowLibrary::default();
         Ok(SavedState {
             user_profiles: None,
             workouts: None,
+            shadow_library: sl,
         })
     }
 

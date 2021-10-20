@@ -98,7 +98,7 @@ use serde_derive::Deserialize;
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Segment {
     duration: Duration,
     power_start: PowerTarget,
@@ -174,9 +174,9 @@ impl<'de> serde::Deserialize<'de> for Segment {
 
 // TODO Refactor what's being done with IntervalTemplate to simplify what's
 // going on here.
-#[derive(Clone)]
-struct IntervalTemplate {
-    name: Option<String>,
+#[derive(Clone, Debug)]
+pub struct IntervalTemplate {
+    pub name: Option<String>,
     description: Option<String>,
     duration: Duration,
     segments: Vec<Segment>,
@@ -185,7 +185,7 @@ struct IntervalTemplate {
 }
 
 impl IntervalTemplate {
-    fn validate(&self) -> Result<(), &'static str> {
+    pub fn validate(&self) -> Result<(), &'static str> {
         let seg_duration = self
             .segments
             .iter()
@@ -226,7 +226,7 @@ impl<'de> serde::Deserialize<'de> for IntervalTemplate {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct ValidateIntervalTemplate {
     name: String,
     duration: Option<Duration>,
@@ -235,7 +235,7 @@ struct ValidateIntervalTemplate {
     repeat: Option<Quantity>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct SegmentUpdate {
     index: usize,
     duration: Option<Duration>,
@@ -277,6 +277,7 @@ struct SegmentUpdate {
 // 'Warmup" # Just a string
 // '10m@.95' # A segment to be turned into an IntervalType
 // { name = '30on/30off', repeat = 30 } # a name interval with changed parameters
+#[derive(Debug, Clone)]
 enum IntervalTemplateType {
     // A name of an Interval or a segment that can be parsed into a string.
     Validate(String),
@@ -436,16 +437,16 @@ impl<'de> serde::Deserialize<'de> for IntervalTemplateType {
     }
 }
 #[derive(Deserialize)]
-struct WorkoutTemplate {
-    name: String,
+pub struct WorkoutTemplate {
+    pub name: String,
     description: String,
     duration: Duration,
     lap_each_interval: bool,
     intervals: Vec<IntervalTemplate>,
 }
 
-#[derive(Deserialize)]
-struct ShadowWorkoutTemplate {
+#[derive(Deserialize, Debug, Clone)]
+pub struct ShadowWorkoutTemplate {
     name: String,
     description: String,
     duration: Duration,
@@ -453,7 +454,7 @@ struct ShadowWorkoutTemplate {
     intervals: Vec<IntervalTemplateType>,
 }
 impl ShadowWorkoutTemplate {
-    fn validate(
+    pub fn validate(
         &mut self,
         interval_templates: &BTreeMap<String, IntervalTemplate>,
     ) -> Result<(), &'static str> {
@@ -513,7 +514,7 @@ impl ShadowWorkoutTemplate {
         Ok(())
     }
 
-    fn build_workout_template(self) -> WorkoutTemplate {
+    pub fn build_workout_template(self) -> WorkoutTemplate {
         let intervals: Vec<IntervalTemplate> = self
             .intervals
             .iter()
@@ -543,8 +544,8 @@ impl ShadowWorkoutTemplate {
 // Read in all workouts, validate workouts against known intervals, and build
 // a workout by expanding out
 pub struct Library {
-    intervals: BTreeMap<String, IntervalTemplate>,
-    workouts: BTreeMap<String, WorkoutTemplate>,
+    pub intervals: BTreeMap<String, IntervalTemplate>,
+    pub workouts: BTreeMap<String, WorkoutTemplate>,
 }
 
 impl Library {
@@ -592,10 +593,19 @@ impl Default for Library {
     }
 }
 
-#[derive(Deserialize)]
-struct ShadowLibrary {
-    intervals: Option<Vec<IntervalTemplate>>,
-    workouts: Option<Vec<ShadowWorkoutTemplate>>,
+#[derive(Deserialize, Debug, Clone)]
+pub struct ShadowLibrary {
+    pub intervals: Option<Vec<IntervalTemplate>>,
+    pub workouts: Option<Vec<ShadowWorkoutTemplate>>,
+}
+
+impl Default for ShadowLibrary {
+    fn default() -> Self {
+        Self {
+            intervals: None,
+            workouts: None,
+        }
+    }
 }
 
 // Application default intervals and workout templates
