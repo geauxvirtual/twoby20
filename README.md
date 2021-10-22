@@ -82,6 +82,29 @@ Power in watts is defined as integer value, and power as a percentage of the use
 
 Requirements when defining an interval and a workout is that the duration of the interval or workout matches the total duration of the segments or intervals respectively. The application will fail to load the workout if these durations do not match.
 
+Intervals also provide the ability to define a repeat of the defined segments.
+
+```TOML
+[[ intervals ]]
+name = "Example interval"
+duration = "20m"
+lap_each_segment = true
+segments = [
+  '30s @ 320', # Power defined in watts
+  '30s @ 0.55' # Power defined as percentage of FTP
+]
+repeat = 20
+```
+
+Time durations are can be defined in hours, minutes, or seconds.
+```TOML
+duration = "10s"
+duration = "10m"
+duration = "1h"
+duration = "10m30s"
+duration = "1h30m"
+```
+
 ## TODOs
 - [ ] Add styling to the GUI
 - [ ] Add support for reading in workouts/intervals from the file system.
