@@ -65,7 +65,7 @@ lap_each_interval = true
 intervals = [
   'Warmup',
   '10m @ 200', #defining power in watts
-  { duration = "30m", power_start = 0.75, power_end = 0.90 }, #defining a segment that's a ramp
+  { duration = "30m", power_start = 0.75, power_end = 0.90 }, #defining an interval that's a ramp
   { name = "Cooldown", duration = "10m", segments = ["0:10m@"] }, #redefinig the duration and segment for a named interval
 ]
 ```
@@ -79,6 +79,8 @@ For example in the example workout above, the Cooldown interval redefines segmen
 `0:10m@100`
 
 Power in watts is defined as integer value, and power as a percentage of the user profile's FTP is defined as a float.
+
+Requirements when defining an interval and a workout is that the duration of the interval or workout matches the total duration of the segments or intervals respectively. The application will fail to load the workout if these durations do not match.
 
 ## TODOs
 - [ ] Add styling to the GUI
