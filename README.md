@@ -12,7 +12,7 @@ Three intervals and one workout are built into the application.
 [[ intervals ]]
 name = "Warmup"
 description = "Warming up the legs"
-duration = "10m"
+duration = "10m" # Duration of all the segments in the interval
 segments = [
   '5m @ 100',
   '1m @ 110',
@@ -25,7 +25,7 @@ segments = [
 name = "2x20"
 description = "2x20 at Tempo (85%)"
 duration = "45m"
-lap_each_segment = true
+lap_each_segment = true # Signal a new lap to start with each segment
 segments = [
   '20m @ 0.85',
   '5m @ 0.55',
@@ -44,7 +44,7 @@ segments = [
 name = "Metcalfe"
 description = "2by20...enough said"
 duration = "1h"
-lap_each_interval = true
+lap_each_interval = true # Signal a new lap to start with each interval.
 intervals = [
   'Warmup',
   '2x20',
@@ -88,12 +88,12 @@ Intervals also provide the ability to define a repeat of the defined segments.
 [[ intervals ]]
 name = "Example interval"
 duration = "20m"
-lap_each_segment = true
+lap_each_segment = true # A new lap will start with each segment
 segments = [
   '30s @ 320', # Power defined in watts
   '30s @ 0.55' # Power defined as percentage of FTP
 ]
-repeat = 20
+repeat = 20 # Amount of times to repeat the above segments
 ```
 
 Time durations are can be defined in hours, minutes, or seconds.
@@ -104,6 +104,8 @@ duration = "1h"
 duration = "10m30s"
 duration = "1h30m"
 ```
+
+Laps for a workout are handled through `lap_each_segment` key in intervals and `lap_each_interval` in workouts. For the example interval above with 20 repeated segments, with `lap_each_segment` set to true, 40 laps will be signaled. If `lap_each_segment` were set to false, then only 20 laps would be signaled.
 
 ## TODOs
 - [ ] Add styling to the GUI
