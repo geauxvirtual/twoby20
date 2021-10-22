@@ -143,7 +143,7 @@ impl UserProfileState {
         let button = |state, label| Button::new(state, Text::new(label).size(16)).padding(8);
         let mut save_button = button(&mut self.save_button, "Save");
 
-        if (self.name_input.is_empty()
+        if (!self.name_input.is_empty()
             && !self.ftp_input.is_empty()
             && self.name_input != profile.name
             && self.ftp_input != profile.ftp.to_string())
