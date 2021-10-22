@@ -23,7 +23,7 @@ segments = [
 
 [[ intervals ]]
 name = "2x20"
-description = "2x20 at Tempo (85%)
+description = "2x20 at Tempo (85%)"
 duration = "45m"
 lap_each_segment = true
 segments = [
