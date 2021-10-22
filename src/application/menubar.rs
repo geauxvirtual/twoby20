@@ -7,7 +7,7 @@ use iced::{
 
 #[derive(Debug, Default, Clone)]
 pub struct MenuBar {
-    workouts_button: button::State,
+    library_button: button::State,
     devices_button: button::State,
     userprofile_button: button::State,
     userprofiles_picklist: pick_list::State<UserProfile>,
@@ -33,9 +33,9 @@ impl MenuBar {
             Row::new()
                 .width(Length::Fill)
                 .push(menu_button(
-                    &mut self.workouts_button,
-                    "Workouts",
-                    Message::ShowWorkouts,
+                    &mut self.library_button,
+                    "Library",
+                    Message::ShowLibrary,
                 ))
                 .push(menu_button(
                     &mut self.devices_button,

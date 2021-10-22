@@ -89,7 +89,7 @@ enum AppState {
 
 enum ScreenState {
     UserProfile,
-    Workouts,
+    Library,
     Devices,
 }
 // Main application structure for handling state changes and views of the
@@ -113,7 +113,6 @@ struct Application {
     active_user_profile: usize,
     user_profiles: Vec<UserProfile>,
     library: Library,
-    workouts: Vec<Workout>,
     menubar: MenuBar,
     user_profile_screen: UserProfileState,
 }
@@ -128,7 +127,7 @@ pub enum Message {
     Loaded(Result<SavedState, LoadError>),
     Tick(Instant),
     EventOccurred(Event),
-    ShowWorkouts,
+    ShowLibrary,
     ShowDevices,
     ShowUserProfile,
     UserProfileMessage(usize, UserProfileMessage),
@@ -159,7 +158,7 @@ impl IcedApplication for Application {
         (
             Application {
                 state: AppState::Starting,
-                screen_state: ScreenState::Workouts,
+                screen_state: ScreenState::Library,
                 should_exit: false,
                 ant_request_tx: flags
                     .ant_request_tx
@@ -167,7 +166,6 @@ impl IcedApplication for Application {
                 user_profiles: vec![UserProfile::new(true)],
                 active_user_profile: 0,
                 library: Library::default(),
-                workouts: vec![],
                 menubar: MenuBar::default(),
                 user_profile_screen: UserProfileState::default(),
             },
@@ -213,9 +211,6 @@ impl IcedApplication for Application {
                         }
                     }
 
-                    if let Some(workouts) = state.workouts {
-                        self.workouts.extend_from_slice(&workouts);
-                    }
                     if let Some(user_profiles) = state.user_profiles {
                         self.user_profiles.extend_from_slice(&user_profiles);
                         for (i, profile) in self.user_profiles.iter_mut().enumerate() {
@@ -259,7 +254,7 @@ impl IcedApplication for Application {
                         //}
                     }
                     Message::ShowUserProfile => self.screen_state = ScreenState::UserProfile,
-                    Message::ShowWorkouts => self.screen_state = ScreenState::Workouts,
+                    Message::ShowLibrary => self.screen_state = ScreenState::Library,
                     Message::ShowDevices => self.screen_state = ScreenState::Devices,
                     Message::UserProfileMessage(i, UserProfileMessage::SaveProfile(name, ftp)) => {
                         // Check to see if we are creating or updating a profile.
@@ -438,14 +433,10 @@ fn initializing_message<'a>() -> Element<'a, Message> {
 // theme = "dark"
 // default = true
 //
-// TODO move these to their own files under application/
-#[derive(Debug, Clone)]
-struct Workout;
 
 #[derive(Debug, Clone)]
 pub struct SavedState {
     user_profiles: Option<Vec<UserProfile>>,
-    workouts: Option<Vec<Workout>>,
     shadow_library: ShadowLibrary,
 }
 
@@ -471,7 +462,6 @@ impl SavedState {
         let sl = ShadowLibrary::default();
         Ok(SavedState {
             user_profiles: None,
-            workouts: None,
             shadow_library: sl,
         })
     }
