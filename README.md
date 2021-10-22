@@ -14,7 +14,7 @@ name = "Warmup"
 description = "Warming up the legs"
 duration = "10m" # Duration of all the segments in the interval
 segments = [
-  '5m @ 100',
+  '5m @ 100', # Power defined in watts.
   '1m @ 110',
   '1m @ 120',
   '1m @ 130',
@@ -27,7 +27,7 @@ description = "2x20 at Tempo (85%)"
 duration = "45m"
 lap_each_segment = true # Signal a new lap to start with each segment
 segments = [
-  '20m @ 0.85',
+  '20m @ 0.85', # Power defined as percentage of FTP
   '5m @ 0.55',
   '20m @ 0.85'
 ]
