@@ -7,6 +7,7 @@ This project is under active development and in a very early stage of developmen
 The project is intended to work on Windows, Linux, and Mac OS X, but all current development and testing occurs on Mac OS X.
 
 ## TODOs
+- [ ] Add styling to the GUI
 - [ ] Add support for reading in workouts/intervals from the file system.
 - [ ] List all workouts and intervals available in the internal library.
 - [ ] Select a workout to record
