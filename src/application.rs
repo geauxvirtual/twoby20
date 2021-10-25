@@ -16,13 +16,13 @@ use iced_native::{subscription, window, Event};
 use libant::Request;
 use log::{error, info};
 
+mod library;
 mod menubar;
 mod types;
 mod user_profile;
-mod workout;
+use library::{Library, ShadowLibrary};
 use menubar::MenuBar;
 use user_profile::{UserProfile, UserProfileMessage, UserProfileState};
-use workout::{Library, ShadowLibrary};
 
 // Run() is the main function to call. This handles starting up all the
 // threads and configuring the channels.
