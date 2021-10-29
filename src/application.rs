@@ -215,10 +215,10 @@ impl IcedApplication for Application {
                     if let Some(user_profiles) = state.user_profiles {
                         self.user_profiles.extend_from_slice(&user_profiles);
                         for (i, profile) in self.user_profiles.iter_mut().enumerate() {
-                            if profile.active() {
+                            if profile.active {
                                 if self.active_user_profile != 0 {
                                     error!("Multiple user profiles set as active. Leaving first profile set as active");
-                                    profile.set_active(false);
+                                    profile.active = false;
                                 }
                                 self.active_user_profile = i;
                             }
@@ -227,7 +227,7 @@ impl IcedApplication for Application {
                         // were set to active. Set first profile loaded to active
                         if self.active_user_profile == 0 {
                             self.active_user_profile = 1;
-                            self.user_profiles[1].set_active(true);
+                            self.user_profiles[1].active = true;
                         }
                     }
                     // If no user profiles were loaded, set screen state to
@@ -270,15 +270,15 @@ impl IcedApplication for Application {
                             // Create a new profile
                             info!("Creating user profile {}", self.user_profiles.len());
                             let mut profile = UserProfile::new(true);
-                            profile.set_name(&name);
-                            profile.set_ftp(ftp);
+                            profile.name = name;
+                            profile.ftp = ftp;
                             self.user_profiles.push(profile);
                             self.active_user_profile = self.user_profiles.len() - 1;
                         } else {
                             info!("Saving user profile {}", i);
                             if let Some(profile) = self.user_profiles.get_mut(i) {
-                                profile.set_name(&name);
-                                profile.set_ftp(ftp);
+                                profile.name = name;
+                                profile.ftp = ftp;
                             }
                         }
                         self.user_profile_screen

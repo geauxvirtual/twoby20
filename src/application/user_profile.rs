@@ -12,7 +12,7 @@ pub struct UserProfile {
     pub ftp: u16,
     // Active field for setting active profile when SavingState. Default will
     // be last active profile.
-    active: bool,
+    pub active: bool,
 }
 
 impl std::fmt::Display for UserProfile {
@@ -37,21 +37,21 @@ impl UserProfile {
             ..Default::default()
         }
     }
+}
 
-    pub fn set_active(&mut self, active: bool) {
-        self.active = active;
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_user_profile_create_active() {
+        let user = UserProfile::new(true);
+        assert!(user.active);
     }
 
-    pub fn active(&self) -> bool {
-        self.active
-    }
-
-    // Set this up for Into to take a &str or String
-    pub fn set_name(&mut self, name: &str) {
-        self.name = name.to_string()
-    }
-
-    pub fn set_ftp(&mut self, ftp: u16) {
-        self.ftp = ftp
+    #[test]
+    fn test_user_profile_create_inactive() {
+        let user = UserProfile::new(false);
+        assert!(!user.active);
     }
 }
