@@ -61,19 +61,19 @@ impl UserProfile {
         self.ftp = ftp
     }
 
-    pub fn update(&mut self, message: UserProfileMessage) {
-        if let UserProfileMessage::SaveProfile(name, ftp) = message {
+    /*pub fn update(&mut self, message: UserProfileMessage) {
+    if let UserProfileMessage::SaveProfile(name, ftp) = message {
+        self.name = name;
+        self.ftp = ftp;
+    }*/
+    /*match message {
+        UserProfileMessage::SaveProfile(name, ftp) => {
             self.name = name;
             self.ftp = ftp;
         }
-        /*match message {
-            UserProfileMessage::SaveProfile(name, ftp) => {
-                self.name = name;
-                self.ftp = ftp;
-            }
-            _ => {}
-        }*/
-    }
+        _ => {}
+    }*/
+    //}
 }
 #[derive(Debug, Clone, Default)]
 pub struct UserProfileState {
