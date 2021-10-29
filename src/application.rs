@@ -131,7 +131,7 @@ pub enum Message {
     ShowLibrary,
     ShowDevices,
     ShowUserProfile,
-    UserProfileMessage(usize, UserProfileScreen::Message),
+    UserProfileScreenMessage(usize, UserProfileScreen::Message),
     UserProfileSelected(UserProfile),
 }
 
@@ -257,7 +257,7 @@ impl IcedApplication for Application {
                     Message::ShowUserProfile => self.screen_state = ScreenState::UserProfile,
                     Message::ShowLibrary => self.screen_state = ScreenState::Library,
                     Message::ShowDevices => self.screen_state = ScreenState::Devices,
-                    Message::UserProfileMessage(
+                    Message::UserProfileScreenMessage(
                         i,
                         UserProfileScreen::Message::SaveProfile(name, ftp),
                     ) => {
@@ -284,7 +284,10 @@ impl IcedApplication for Application {
                         self.user_profile_screen
                             .update(UserProfileScreen::Message::Editing(false));
                     }
-                    Message::UserProfileMessage(i, UserProfileScreen::Message::DeleteProfile) => {
+                    Message::UserProfileScreenMessage(
+                        i,
+                        UserProfileScreen::Message::DeleteProfile,
+                    ) => {
                         // We delete the requested profile. If this leaves no profiles,
                         // then we create a new profile. The application requires
                         // a profile in order to function
@@ -313,7 +316,7 @@ impl IcedApplication for Application {
                         self.user_profile_screen
                             .update(UserProfileScreen::Message::Clear);
                     }
-                    Message::UserProfileMessage(_, user_profile_message) => {
+                    Message::UserProfileScreenMessage(_, user_profile_message) => {
                         self.user_profile_screen.update(user_profile_message)
                     }
                     Message::UserProfileSelected(profile) => {
@@ -382,7 +385,7 @@ impl IcedApplication for Application {
                         self.user_profile_screen
                             .view(&self.user_profiles[active_user_profile])
                             .map(move |message| {
-                                Message::UserProfileMessage(active_user_profile, message)
+                                Message::UserProfileScreenMessage(active_user_profile, message)
                             })
                         //self.user_profiles[active_user_profile]
                         //    .view()
