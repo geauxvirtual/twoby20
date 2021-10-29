@@ -17,12 +17,13 @@ use libant::Request;
 use log::{error, info};
 
 mod library;
-mod menubar;
 mod types;
+mod ui;
 mod user_profile;
 use library::{Library, ShadowLibrary};
-use menubar::MenuBar;
-use user_profile::{UserProfile, UserProfileMessage, UserProfileState};
+use ui::menubar::MenuBar;
+use ui::user_profile as UserProfileScreen;
+use user_profile::UserProfile;
 
 // Run() is the main function to call. This handles starting up all the
 // threads and configuring the channels.
@@ -114,7 +115,7 @@ struct Application {
     user_profiles: Vec<UserProfile>,
     library: Library,
     menubar: MenuBar,
-    user_profile_screen: UserProfileState,
+    user_profile_screen: UserProfileScreen::State,
 }
 
 // Message enum for configuring subscriptions and updates in the application.
@@ -130,7 +131,7 @@ pub enum Message {
     ShowLibrary,
     ShowDevices,
     ShowUserProfile,
-    UserProfileMessage(usize, UserProfileMessage),
+    UserProfileMessage(usize, UserProfileScreen::Message),
     UserProfileSelected(UserProfile),
 }
 
@@ -167,7 +168,7 @@ impl IcedApplication for Application {
                 active_user_profile: 0,
                 library: Library::default(),
                 menubar: MenuBar::default(),
-                user_profile_screen: UserProfileState::default(),
+                user_profile_screen: UserProfileScreen::State::default(),
             },
             Command::perform(SavedState::load(), Message::Loaded),
         )
@@ -256,7 +257,10 @@ impl IcedApplication for Application {
                     Message::ShowUserProfile => self.screen_state = ScreenState::UserProfile,
                     Message::ShowLibrary => self.screen_state = ScreenState::Library,
                     Message::ShowDevices => self.screen_state = ScreenState::Devices,
-                    Message::UserProfileMessage(i, UserProfileMessage::SaveProfile(name, ftp)) => {
+                    Message::UserProfileMessage(
+                        i,
+                        UserProfileScreen::Message::SaveProfile(name, ftp),
+                    ) => {
                         // Check to see if we are creating or updating a profile.
                         // i will be 0 when creating a profile.
                         // TODO Validate name isn't empty. Return an error back
@@ -278,9 +282,9 @@ impl IcedApplication for Application {
                             }
                         }
                         self.user_profile_screen
-                            .update(UserProfileMessage::Editing(false));
+                            .update(UserProfileScreen::Message::Editing(false));
                     }
-                    Message::UserProfileMessage(i, UserProfileMessage::DeleteProfile) => {
+                    Message::UserProfileMessage(i, UserProfileScreen::Message::DeleteProfile) => {
                         // We delete the requested profile. If this leaves no profiles,
                         // then we create a new profile. The application requires
                         // a profile in order to function
@@ -291,7 +295,8 @@ impl IcedApplication for Application {
                         // just add a check to remove later.
                         if i == 0 {
                             error!("Trying to delete default profile");
-                            self.user_profile_screen.update(UserProfileMessage::Clear);
+                            self.user_profile_screen
+                                .update(UserProfileScreen::Message::Clear);
                             return Command::none();
                         }
                         info!("Removing user profile {}", i);
@@ -305,7 +310,8 @@ impl IcedApplication for Application {
                         } else {
                             self.active_user_profile = 1;
                         }
-                        self.user_profile_screen.update(UserProfileMessage::Clear);
+                        self.user_profile_screen
+                            .update(UserProfileScreen::Message::Clear);
                     }
                     Message::UserProfileMessage(_, user_profile_message) => {
                         self.user_profile_screen.update(user_profile_message)
@@ -316,7 +322,8 @@ impl IcedApplication for Application {
                         // Find user profile. Set active_user_profile to selected profile.
                         for (i, p) in self.user_profiles.iter().enumerate() {
                             if profile == *p {
-                                self.user_profile_screen.update(UserProfileMessage::Clear);
+                                self.user_profile_screen
+                                    .update(UserProfileScreen::Message::Clear);
                                 self.active_user_profile = i;
                                 // If profile is default profile, change screen state
                                 // for a user to be created.
